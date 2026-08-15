@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# IDE / OS
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
