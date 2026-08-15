@@ -1,0 +1,27 @@
+name: directory-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/directory-api/**'
+      - '.github/workflows/directory-api.yml'
+  pull_request:
+    paths:
+      - 'services/directory-api/**'
+      - '.github/workflows/directory-api.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Restore
+        run: dotnet restore services/directory-api/DirectoryApi/DirectoryApi.csproj
+      - name: Build
+        run: dotnet build services/directory-api/DirectoryApi/DirectoryApi.csproj --no-restore
+      - name: Test
+        run: dotnet test services/directory-api/DirectoryApi.Tests/DirectoryApi.Tests.csproj

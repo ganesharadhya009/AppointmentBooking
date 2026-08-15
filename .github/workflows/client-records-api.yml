@@ -1,0 +1,27 @@
+name: client-records-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/client-records-api/**'
+      - '.github/workflows/client-records-api.yml'
+  pull_request:
+    paths:
+      - 'services/client-records-api/**'
+      - '.github/workflows/client-records-api.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Restore
+        run: dotnet restore services/client-records-api/ClientRecordsApi/ClientRecordsApi.csproj
+      - name: Build
+        run: dotnet build services/client-records-api/ClientRecordsApi/ClientRecordsApi.csproj --no-restore
+      - name: Test
+        run: dotnet test services/client-records-api/ClientRecordsApi.Tests/ClientRecordsApi.Tests.csproj
