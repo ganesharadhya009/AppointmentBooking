@@ -1,0 +1,31 @@
+# Auth0 Deploy CLI format — see infra/auth0/README.md for how this is applied.
+
+tenant:
+  enabled_locales:
+    - en
+  flags:
+    enable_client_connections: false
+
+roles:
+  - name: Super Admin
+    description: Highest-privilege back-office role; not self-selectable at login.
+  - name: Admin
+    description: Primary back-office operator role.
+  - name: Therapist
+    description: Therapist's own login role (distinct from Therapist records in Directory API).
+  - name: Auditor
+    description: Read/oversight-oriented role.
+
+clients:
+  - name: admin-spa
+    app_type: spa
+    description: React admin console — Authorization Code + PKCE flow.
+
+  - name: scheduling-api-b2b-placeholder
+    app_type: non_interactive
+    description: >
+      Placeholder M2M (client-credentials) application for future external
+      B2B consumers of the Scheduling API. Not granted any API access yet —
+      see design spec §4/§12: every real M2M credential must be minted
+      per-tenant with a single non-overridable TenantId claim before the
+      Scheduling API is opened externally.
