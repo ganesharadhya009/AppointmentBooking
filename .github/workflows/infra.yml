@@ -1,0 +1,29 @@
+name: infra
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bicep CLI
+        run: az bicep install
+      - name: Validate Bicep template
+        run: az bicep build --file infra/bicep/main.bicep --stdout
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Validate Auth0 tenant YAML
+        run: python -c "import yaml; yaml.safe_load(open('infra/auth0/tenant.yaml', encoding='utf-8')); print('tenant.yaml is valid YAML')"

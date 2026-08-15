@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace ClientRecordsApi.Tests;
@@ -18,8 +19,8 @@ public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await _client.GetAsync("/health");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Healthy", body);
-        Assert.Contains("ClientRecordsApi", body);
+        var body = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.Equal("Healthy", body!["status"]);
+        Assert.Equal("ClientRecordsApi", body["service"]);
     }
 }

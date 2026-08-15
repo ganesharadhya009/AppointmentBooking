@@ -1,8 +1,14 @@
 @description('Short environment name, e.g. dev, staging, prod.')
 param environmentName string = 'dev'
 
-@description('Azure region for all resources.')
+@description('Azure region for all resources except the Static Web App.')
 param location string = resourceGroup().location
+
+@description('Azure region for the Static Web App (must be one of the supported regions, e.g. eastus2, centralus, westus2, westeurope, eastasia).')
+param staticWebAppLocation string = 'eastus2'
+
+@description('Publisher email for API Management notifications. Must be a real, monitored address.')
+param apiManagementPublisherEmail string
 
 @description('Administrator login for the Azure SQL logical server.')
 param sqlAdminLogin string
@@ -19,6 +25,7 @@ param postgresAdminLogin string
 param postgresAdminPassword string
 
 var namePrefix = 'appt-${environmentName}'
+var uniqueSuffix = uniqueString(resourceGroup().id)
 
 // ---------- Observability ----------
 
@@ -46,7 +53,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 // ---------- Secrets ----------
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: '${namePrefix}-kv'
+  name: '${namePrefix}-kv-${substring(uniqueSuffix, 0, 6)}'
   location: location
   properties: {
     sku: {
@@ -61,7 +68,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 // ---------- Azure SQL (Directory API, Scheduling API, Client Records API) ----------
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
-  name: '${namePrefix}-sql'
+  name: '${namePrefix}-sql-${uniqueSuffix}'
   location: location
   properties: {
     administratorLogin: sqlAdminLogin
@@ -139,7 +146,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: '${namePrefix}-admin-spa'
-  location: location
+  location: staticWebAppLocation
   sku: {
     name: 'Standard'
     tier: 'Standard'
@@ -150,14 +157,14 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
 // ---------- Gateway ----------
 
 resource apiManagement 'Microsoft.ApiManagement/service@2023-05-01-preview' = {
-  name: '${namePrefix}-apim'
+  name: '${namePrefix}-apim-${uniqueSuffix}'
   location: location
   sku: {
     name: 'Developer'
     capacity: 1
   }
   properties: {
-    publisherEmail: 'platform@appointmentbooking.example'
+    publisherEmail: apiManagementPublisherEmail
     publisherName: 'AppointmentBooking Platform Team'
   }
 }

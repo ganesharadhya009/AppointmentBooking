@@ -14,3 +14,23 @@ for the Phase 1 design.
 - `infra/bicep` — Azure infrastructure as code
 - `infra/auth0` — Auth0 tenant configuration as code
 - `docs/superpowers/` — specs and implementation plans
+
+## Building and testing
+
+| Service | Command |
+|---|---|
+| `directory-api` | `dotnet test services/directory-api/DirectoryApi.Tests/DirectoryApi.Tests.csproj` |
+| `scheduling-api` | `dotnet test services/scheduling-api/SchedulingApi.Tests/SchedulingApi.Tests.csproj` |
+| `client-records-api` | `dotnet test services/client-records-api/ClientRecordsApi.Tests/ClientRecordsApi.Tests.csproj` |
+| `ai-service` | see below |
+| `admin-spa` | `npm test` (from `frontend/admin-spa`) |
+
+### ai-service (Python)
+
+```bash
+cd services/ai-service
+python -m venv .venv          # first time only
+source .venv/Scripts/activate # Windows Git Bash; use .venv/bin/activate on macOS/Linux
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -v
+```

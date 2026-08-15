@@ -13,7 +13,7 @@ az group create --name appt-dev-rg --location <your-region>
 az deployment group create \
   --resource-group appt-dev-rg \
   --template-file infra/bicep/main.bicep \
-  --parameters environmentName=dev sqlAdminLogin=<login> sqlAdminPassword=<password> postgresAdminLogin=<login> postgresAdminPassword=<password>
+  --parameters environmentName=dev apiManagementPublisherEmail=<real-email> sqlAdminLogin=<login> sqlAdminPassword=<password> postgresAdminLogin=<login> postgresAdminPassword=<password>
 ```
 
 Store `sqlAdminPassword` and `postgresAdminPassword` in a secrets manager
