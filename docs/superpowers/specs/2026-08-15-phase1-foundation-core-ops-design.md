@@ -82,11 +82,13 @@ Modular services — not a full microservices sprawl. The rule of thumb: split a
 1. **Directory API** (.NET, own Azure SQL database) — Tenants, Branches, Therapy Catalog, Therapists (with per-branch schedule/pricing). This is the "who and what" of the network.
 2. **Scheduling API** (.NET, own Azure SQL database) — the booking engine: appointment creation, availability computation, staff-initiated booking. Built with a versioned, stable public contract (resource-oriented REST, API-key/OAuth client-credentials auth for external callers, per-consumer rate limiting) from day one, so that turning this into a standalone B2B "Appointment Booking API" product later is an infrastructure and packaging change, not a rewrite.
 3. **Client Records API** (.NET, own Azure SQL database) — Parents & Children profiles. Split out on its own because it holds the platform's most sensitive PII, warranting its own access boundary even before scale demands it.
-4. **AI Service** (Python/FastAPI, own Postgres database with pgvector) — scaffolded now with a single real endpoint (proposed: smart slot-suggestion for staff booking, ranking available therapist/slot combinations) to prove the cross-service integration pattern early without committing to a large AI scope yet.
+4. **AI Service** (Python/FastAPI, own Postgres database with pgvector) — scaffolded now with a single real endpoint (proposed: smart slot-suggestion for staff booking, ranking available therapist/slot combinations) to prove the cross-service integration pattern early without committing to a large AI scope yet. The AI Service is never in the critical path of booking: the call direction is AI Service → Scheduling API (reading availability), never the reverse, and the Scheduling API's write endpoints do not accept calls from the AI Service. If the AI Service is down, slow, or unauthenticated, booking must succeed with suggestions simply omitted, not fail.
 
 **Gateway:** Azure API Management sits in front of all services. Today it validates Auth0 tokens, routes to the right service, and applies rate limits for the admin SPA's traffic. It is the same component that will front external B2B traffic to the Scheduling API in a later phase.
 
 **Identity:** Auth0, using **Organizations** for multi-tenant login and role assignment (Super Admin / Admin / Therapist / Auditor, scoped per tenant), and **M2M (client-credentials) tokens** for the future B2B consumers of the Scheduling API. No custom identity service is built — Auth0 is the source of truth for who a user is and which tenant/role they're acting as.
+
+**Prerequisite before external exposure:** every M2M credential issued to a future B2B consumer must be minted per-tenant, carrying a single non-overridable `TenantId` claim that the gateway and Scheduling API validate identically to a user token's tenant claim. This is not required for Phase 1 — no external consumer exists yet — but must be in place before the Scheduling API is opened to any external consumer in a later phase (tracked in §12).
 
 **Frontend:** React + TypeScript SPA (Vite), calling everything through the gateway. No server-side rendering needed for an authenticated admin console.
 
@@ -95,6 +97,8 @@ Modular services — not a full microservices sprawl. The rule of thumb: split a
 Each core service (Directory, Scheduling, Client Records) uses a **single shared Azure SQL database with a `TenantId` column on every table**, enforced through EF Core global query filters that read the tenant claim out of the validated Auth0 token — never a client-supplied tenant identifier.
 
 This is chosen over database-per-tenant because, for a small team, operating N databases is a heavier ongoing burden than it's worth at this stage. Because the data-access layer already filters everything by `TenantId`, moving a specific large customer to an isolated database later (e.g. for a contractual isolation requirement) is a migration, not an architectural rewrite.
+
+**This is a cross-service requirement, not an EF-specific one.** The AI Service's Postgres store also carries a `TenantId` column on every table and must filter every query by the tenant claim from the validated token in its own code (e.g. a FastAPI dependency that performs the equivalent of EF's global query filter). The enforcement mechanism differs per stack, but no service — .NET or Python — is exempt from enforcing it in code; tenancy is never assumed safe by convention alone.
 
 ## 6. Data Model (Phase 1)
 
@@ -121,6 +125,10 @@ Field-level schema belongs in the implementation plan; this is the entity summar
 
 One real endpoint: given a child, therapy type, and branch, the AI service returns a ranked list of suggested therapist/slot combinations (calling the Scheduling API's availability data). This is deliberately small — the goal is proving the pattern (service-to-service auth, deployment, gateway routing to a Python service) before Phase 7 builds out the full AI feature set.
 
+**Advisory-only invariant.** The AI Service's output is a suggestion, never an action: a booking is only ever created by an authenticated staff member's explicit action against the Scheduling API. The Scheduling API's write endpoints do not accept calls from the AI Service, and no future change may wire a ranked suggestion directly into a booking without this section being explicitly revised and re-approved — this boundary is not allowed to erode silently as the AI feature set grows in Phase 7.
+
+**Data handling.** Only opaque identifiers and slot metadata (child ID, branch ID, therapy-type ID, timing) are sent to the AI Service — names, DOB, guardian contact details, and any free-text clinical/diagnosis fields never cross into it. `SlotSuggestionLog` entries are retained for 90 days and then purged; this window may be revisited during implementation planning but the default is fixed here rather than left open, since this is child health-adjacent data.
+
 ## 8. Deliberate deviations from BimBa-Pro
 
 - **Multi-tenant from the start** — BimBa-Pro is a single-operator internal tool; this product is sellable to many clinic networks.
@@ -131,6 +139,8 @@ One real endpoint: given a child, therapy type, and branch, the AI service retur
 ## 9. Error Handling
 
 Every .NET service returns **RFC 7807 Problem Details** on failure, produced by centralized exception-handling middleware (no per-endpoint try/catch for error formatting). A correlation ID is issued at the API Management gateway and propagated through all downstream service calls, so a single request can be traced across Directory/Scheduling/Client Records/AI in Application Insights.
+
+Scheduling API write endpoints (starting with `POST /appointments`) require an idempotency key from the caller: a retried request carrying the same key returns the original result instead of creating a duplicate booking. This applies regardless of whether the retry comes from a flaky client, a gateway timeout, or a future automated caller — duplicate bookings from naive retries are treated as a correctness bug, not an acceptable edge case.
 
 ## 10. Testing Strategy
 
@@ -154,3 +164,4 @@ These mirror gaps the reference spec itself flagged (its Appendix C) and remain 
 - Exact server-side validation rules and rate limits are not yet defined — to be specified during implementation planning, not assumed from BimBa-Pro's client-side field markers.
 - Row-level mutation flows (approve/reject, edit-in-place) for Phase 2+ modules are not designed yet — out of scope for Phase 1.
 - The AI stub's exact ranking heuristic (rule-based vs. model-based) is an implementation-planning decision, not fixed here.
+- **M2M client-credentials token scoping** (one credential bound to exactly one `TenantId`, non-overridable — see §4) must be finalized before the Scheduling API is opened to any external B2B consumer. Not required for Phase 1 since no external consumer exists yet; tracked here specifically so it isn't skipped when that phase starts.
