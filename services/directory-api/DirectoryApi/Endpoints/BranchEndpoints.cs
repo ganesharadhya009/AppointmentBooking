@@ -119,28 +119,42 @@ public static class BranchEndpoints
             // the DELETE (there's no FK between the old and new rows to force ordering) — since
             // a branch's tiers always reuse the same fixed session counts, this collision is not
             // hypothetical, it happens on every update. Deleting and saving first avoids it.
-            db.BranchDiscountTiers.RemoveRange(branch.DiscountTiers);
-            branch.DiscountTiers.Clear();
-            await db.SaveChangesAsync();
-
-            // Adding the new tiers via the DbSet (not just the navigation collection) is required:
-            // `branch` is already tracked as Unchanged from the query above, so EF's automatic
-            // graph fixup for entities discovered only through its navigation — combined with
-            // these entities having a non-default, client-set Guid key — infers EntityState.Modified
-            // rather than Added, which generates a failing UPDATE (0 rows affected) instead of an
-            // INSERT. Adding directly to the DbSet always marks the entity Added regardless of key.
-            var newTiers = request.DiscountTiers.Select(tier => new BranchDiscountTier
+            // Both SaveChangesAsync calls are wrapped in one transaction so a failure after the
+            // delete (before the new tiers are inserted) can't leave the branch with zero tiers.
+            // The transaction runs through the DbContext's execution strategy (rather than a bare
+            // BeginTransactionAsync) because the SqlServer provider is configured with
+            // EnableRetryOnFailure() — a retrying execution strategy refuses user-initiated
+            // transactions started any other way.
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                Id = Guid.NewGuid(),
-                TenantId = tenantContext.TenantId,
-                BranchId = branch.Id,
-                SessionCount = tier.SessionCount,
-                DiscountPerSession = tier.DiscountPerSession
-            }).ToList();
-            db.BranchDiscountTiers.AddRange(newTiers);
-            branch.DiscountTiers = newTiers;
+                await using var transaction = await db.Database.BeginTransactionAsync();
 
-            await db.SaveChangesAsync();
+                db.BranchDiscountTiers.RemoveRange(branch.DiscountTiers);
+                branch.DiscountTiers.Clear();
+                await db.SaveChangesAsync();
+
+                // Adding the new tiers via the DbSet (not just the navigation collection) is required:
+                // `branch` is already tracked as Unchanged from the query above, so EF's automatic
+                // graph fixup for entities discovered only through its navigation — combined with
+                // these entities having a non-default, client-set Guid key — infers EntityState.Modified
+                // rather than Added, which generates a failing UPDATE (0 rows affected) instead of an
+                // INSERT. Adding directly to the DbSet always marks the entity Added regardless of key.
+                var newTiers = request.DiscountTiers.Select(tier => new BranchDiscountTier
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantContext.TenantId,
+                    BranchId = branch.Id,
+                    SessionCount = tier.SessionCount,
+                    DiscountPerSession = tier.DiscountPerSession
+                }).ToList();
+                db.BranchDiscountTiers.AddRange(newTiers);
+                branch.DiscountTiers = newTiers;
+
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+            });
+
             return Results.Ok(ToResponse(branch));
         });
 

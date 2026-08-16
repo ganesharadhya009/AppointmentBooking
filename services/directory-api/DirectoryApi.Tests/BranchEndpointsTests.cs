@@ -208,4 +208,34 @@ public class BranchEndpointsTests : IClassFixture<LocalDbTestFixture>
 
         Assert.Empty(body!.Items);
     }
+
+    [Fact]
+    public async Task PutBranch_WithTransactionWrapper_StillReplacesTiersCorrectly()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/branches", tenantId, new CreateBranchRequest
+        {
+            Name = "Transaction Test Branch",
+            WeeklyDayOff = DayOfWeek.Sunday,
+            DiscountTiers = ValidTiers()
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<BranchResponse>();
+
+        var newTiers = ValidTiers();
+        newTiers[0].DiscountPerSession = 777;
+
+        var updateResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/branches/{createdBody!.Id}", tenantId, new UpdateBranchRequest
+        {
+            Name = "Transaction Test Branch",
+            WeeklyDayOff = DayOfWeek.Sunday,
+            IsActive = true,
+            DiscountTiers = newTiers
+        }));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updatedBody = await updateResponse.Content.ReadFromJsonAsync<BranchResponse>();
+        Assert.Equal(5, updatedBody!.DiscountTiers.Count);
+        Assert.Equal(777, updatedBody.DiscountTiers.First(t => t.SessionCount == 10).DiscountPerSession);
+    }
 }
