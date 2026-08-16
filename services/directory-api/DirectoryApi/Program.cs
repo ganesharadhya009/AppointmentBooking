@@ -1,4 +1,5 @@
 using DirectoryApi.Data;
+using DirectoryApi.Endpoints;
 using DirectoryApi.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,8 @@ using (var scope = app.Services.CreateScope())
 app.UseMiddleware<TenantIdMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "DirectoryApi" }));
+
+app.MapTenantEndpoints();
 
 app.Run();
 
