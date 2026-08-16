@@ -42,6 +42,12 @@ public static class BranchEndpoints
 
         group.MapPost("", async (CreateBranchRequest request, DirectoryDbContext db, ITenantContext tenantContext) =>
         {
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
             if (!DiscountTierValidator.IsValid(request.DiscountTiers, out var error))
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["discountTiers"] = [error!] });
@@ -80,6 +86,12 @@ public static class BranchEndpoints
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateBranchRequest request, DirectoryDbContext db, ITenantContext tenantContext) =>
         {
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
             if (!DiscountTierValidator.IsValid(request.DiscountTiers, out var error))
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["discountTiers"] = [error!] });
@@ -102,17 +114,31 @@ public static class BranchEndpoints
             branch.PhotoUrl = request.PhotoUrl;
             branch.IsActive = request.IsActive;
 
+            // Deleting old tiers and inserting new ones in the same SaveChangesAsync call can
+            // violate the unique (BranchId, SessionCount) index if EF orders the INSERT before
+            // the DELETE (there's no FK between the old and new rows to force ordering) — since
+            // a branch's tiers always reuse the same fixed session counts, this collision is not
+            // hypothetical, it happens on every update. Deleting and saving first avoids it.
+            db.BranchDiscountTiers.RemoveRange(branch.DiscountTiers);
             branch.DiscountTiers.Clear();
-            foreach (var tier in request.DiscountTiers)
+            await db.SaveChangesAsync();
+
+            // Adding the new tiers via the DbSet (not just the navigation collection) is required:
+            // `branch` is already tracked as Unchanged from the query above, so EF's automatic
+            // graph fixup for entities discovered only through its navigation — combined with
+            // these entities having a non-default, client-set Guid key — infers EntityState.Modified
+            // rather than Added, which generates a failing UPDATE (0 rows affected) instead of an
+            // INSERT. Adding directly to the DbSet always marks the entity Added regardless of key.
+            var newTiers = request.DiscountTiers.Select(tier => new BranchDiscountTier
             {
-                branch.DiscountTiers.Add(new BranchDiscountTier
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = tenantContext.TenantId,
-                    SessionCount = tier.SessionCount,
-                    DiscountPerSession = tier.DiscountPerSession
-                });
-            }
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                BranchId = branch.Id,
+                SessionCount = tier.SessionCount,
+                DiscountPerSession = tier.DiscountPerSession
+            }).ToList();
+            db.BranchDiscountTiers.AddRange(newTiers);
+            branch.DiscountTiers = newTiers;
 
             await db.SaveChangesAsync();
             return Results.Ok(ToResponse(branch));
@@ -126,7 +152,7 @@ public static class BranchEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Branch not found");
             }
 
-            var hasTherapyTypes = await db.TherapyTypes.AnyAsync(t => t.Branches.Any(b => b.Id == id));
+            var hasTherapyTypes = await db.TherapyTypes.AnyAsync(t => t.Status != TherapyTypeStatus.Deleted && t.Branches.Any(b => b.Id == id));
             if (hasTherapyTypes)
             {
                 return Results.Problem(

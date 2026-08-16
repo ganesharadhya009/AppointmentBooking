@@ -3,6 +3,7 @@ using DirectoryApi.Data;
 using DirectoryApi.Dtos;
 using DirectoryApi.Entities;
 using DirectoryApi.Tenancy;
+using DirectoryApi.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace DirectoryApi.Endpoints;
@@ -41,7 +42,21 @@ public static class TherapyTypeEndpoints
 
         group.MapPost("", async (CreateTherapyTypeRequest request, DirectoryDbContext db, ITenantContext tenantContext) =>
         {
-            var branches = await db.Branches.Where(b => request.BranchIds.Contains(b.Id)).ToListAsync();
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
+            var branchIds = request.BranchIds ?? [];
+            var branches = await db.Branches.Where(b => branchIds.Contains(b.Id)).ToListAsync();
+            if (branches.Count != branchIds.Distinct().Count())
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["branchIds"] = ["One or more branch IDs were not found or do not belong to this tenant."]
+                });
+            }
 
             var therapyType = new TherapyType
             {
@@ -63,6 +78,12 @@ public static class TherapyTypeEndpoints
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateTherapyTypeRequest request, DirectoryDbContext db) =>
         {
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
             var therapyType = await db.TherapyTypes.Include(t => t.Branches).FirstOrDefaultAsync(t => t.Id == id);
             if (therapyType is null)
             {
@@ -77,7 +98,15 @@ public static class TherapyTypeEndpoints
                 });
             }
 
-            var branches = await db.Branches.Where(b => request.BranchIds.Contains(b.Id)).ToListAsync();
+            var branchIds = request.BranchIds ?? [];
+            var branches = await db.Branches.Where(b => branchIds.Contains(b.Id)).ToListAsync();
+            if (branches.Count != branchIds.Distinct().Count())
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["branchIds"] = ["One or more branch IDs were not found or do not belong to this tenant."]
+                });
+            }
 
             therapyType.Name = request.Name;
             therapyType.PhotoUrl = request.PhotoUrl;

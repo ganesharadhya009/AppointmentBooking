@@ -8,6 +8,12 @@ public static class DiscountTierValidator
 
     public static bool IsValid(List<DiscountTierDto> tiers, out string? error)
     {
+        if (tiers is null)
+        {
+            error = "Discount tiers are required.";
+            return false;
+        }
+
         var sessionCounts = tiers.Select(t => t.SessionCount).OrderBy(c => c).ToArray();
 
         if (!sessionCounts.SequenceEqual(RequiredSessionCounts))

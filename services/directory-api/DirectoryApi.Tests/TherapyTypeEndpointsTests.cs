@@ -126,4 +126,35 @@ public class TherapyTypeEndpointsTests : IClassFixture<LocalDbTestFixture>
         Assert.All(body!.Items, t => Assert.NotEqual("Tenant B Therapy", t.Name));
         Assert.Contains(body.Items, t => t.Name == "Tenant A Therapy");
     }
+
+    [Fact]
+    public async Task GetTherapyTypeById_UnderAnotherTenant_Returns404()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapy-types", tenantA, new CreateTherapyTypeRequest
+        {
+            Name = "Tenant A Only Therapy"
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<TherapyTypeResponse>();
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, $"/therapy-types/{createdBody!.Id}", tenantB));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostTherapyType_WithUnknownBranchId_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapy-types", tenantId, new CreateTherapyTypeRequest
+        {
+            Name = "Therapy With Bad Branch",
+            BranchIds = [Guid.NewGuid()]
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

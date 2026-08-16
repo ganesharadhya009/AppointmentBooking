@@ -17,11 +17,11 @@ namespace DirectoryApi.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Address = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Country = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    State = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    City = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Country = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    State = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Latitude = table.Column<double>(type: "float", nullable: true),
                     Longitude = table.Column<double>(type: "float", nullable: true),
                     WeeklyDayOff = table.Column<int>(type: "int", nullable: false),
@@ -40,7 +40,7 @@ namespace DirectoryApi.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     SubscriptionStatus = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
@@ -55,7 +55,7 @@ namespace DirectoryApi.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     PhotoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
@@ -118,9 +118,24 @@ namespace DirectoryApi.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_BranchDiscountTiers_TenantId",
+                table: "BranchDiscountTiers",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Branches_TenantId",
+                table: "Branches",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TherapyTypeBranch_TherapyTypesId",
                 table: "TherapyTypeBranch",
                 column: "TherapyTypesId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TherapyTypes_TenantId",
+                table: "TherapyTypes",
+                column: "TenantId");
         }
 
         /// <inheritdoc />

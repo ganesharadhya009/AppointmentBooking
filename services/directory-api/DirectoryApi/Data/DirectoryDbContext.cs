@@ -14,9 +14,20 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Tenant>(t =>
+        {
+            t.Property(x => x.Name).HasMaxLength(200);
+        });
+
         modelBuilder.Entity<Branch>(b =>
         {
             b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            b.Property(x => x.Name).HasMaxLength(200);
+            b.Property(x => x.Address).HasMaxLength(500);
+            b.Property(x => x.Country).HasMaxLength(100);
+            b.Property(x => x.State).HasMaxLength(100);
+            b.Property(x => x.City).HasMaxLength(100);
+            b.HasIndex(x => x.TenantId);
             b.HasMany(x => x.DiscountTiers)
                 .WithOne()
                 .HasForeignKey(t => t.BranchId)
@@ -27,12 +38,15 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
         {
             t.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             t.HasIndex(x => new { x.BranchId, x.SessionCount }).IsUnique();
+            t.HasIndex(x => x.TenantId);
             t.Property(x => x.DiscountPerSession).HasColumnType("decimal(10,2)");
         });
 
         modelBuilder.Entity<TherapyType>(t =>
         {
             t.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            t.Property(x => x.Name).HasMaxLength(200);
+            t.HasIndex(x => x.TenantId);
             t.HasMany(x => x.Branches)
                 .WithMany(x => x.TherapyTypes)
                 .UsingEntity(j => j.ToTable("TherapyTypeBranch"));

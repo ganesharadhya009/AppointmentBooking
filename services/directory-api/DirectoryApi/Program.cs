@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddDbContext<DirectoryDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DirectoryDb")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DirectoryDb"), sqlOptions => sqlOptions.EnableRetryOnFailure()));
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
@@ -21,6 +21,9 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
     }
 }
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 app.UseMiddleware<TenantIdMiddleware>();
 

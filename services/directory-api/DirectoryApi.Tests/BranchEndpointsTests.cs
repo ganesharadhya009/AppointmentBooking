@@ -139,4 +139,73 @@ public class BranchEndpointsTests : IClassFixture<LocalDbTestFixture>
 
         Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task GetBranchById_UnderAnotherTenant_Returns404()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/branches", tenantA, new CreateBranchRequest
+        {
+            Name = "Tenant A Only Branch",
+            WeeklyDayOff = DayOfWeek.Sunday,
+            DiscountTiers = ValidTiers()
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<BranchResponse>();
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, $"/branches/{createdBody!.Id}", tenantB));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PutBranch_UpdatesFieldsAndReplacesDiscountTiers()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/branches", tenantId, new CreateBranchRequest
+        {
+            Name = "Original Name",
+            WeeklyDayOff = DayOfWeek.Sunday,
+            DiscountTiers = ValidTiers()
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<BranchResponse>();
+
+        var updatedTiers = ValidTiers();
+        updatedTiers[0].DiscountPerSession = 999;
+
+        var updateResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/branches/{createdBody!.Id}", tenantId, new UpdateBranchRequest
+        {
+            Name = "Updated Name",
+            WeeklyDayOff = DayOfWeek.Monday,
+            IsActive = false,
+            DiscountTiers = updatedTiers
+        }));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updatedBody = await updateResponse.Content.ReadFromJsonAsync<BranchResponse>();
+        Assert.Equal("Updated Name", updatedBody!.Name);
+        Assert.False(updatedBody.IsActive);
+        Assert.Equal(999, updatedBody.DiscountTiers.First(t => t.SessionCount == 10).DiscountPerSession);
+    }
+
+    [Fact]
+    public async Task ListBranches_TiersNeverLeakAcrossTenants()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/branches", tenantA, new CreateBranchRequest
+        {
+            Name = "Tenant A Branch With Tiers",
+            WeeklyDayOff = DayOfWeek.Sunday,
+            DiscountTiers = ValidTiers()
+        }));
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, "/branches", tenantB));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<BranchResponse>>();
+
+        Assert.Empty(body!.Items);
+    }
 }

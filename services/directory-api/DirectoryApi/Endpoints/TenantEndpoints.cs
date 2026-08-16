@@ -1,6 +1,7 @@
 using DirectoryApi.Data;
 using DirectoryApi.Dtos;
 using DirectoryApi.Entities;
+using DirectoryApi.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace DirectoryApi.Endpoints;
@@ -18,6 +19,12 @@ public static class TenantEndpoints
 
         group.MapPost("", async (CreateTenantRequest request, DirectoryDbContext db) =>
         {
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
             var tenant = new Tenant
             {
                 Id = Guid.NewGuid(),
@@ -34,7 +41,7 @@ public static class TenantEndpoints
 
         group.MapGet("/{id:guid}", async (Guid id, DirectoryDbContext db) =>
         {
-            var tenant = await db.Tenants.FindAsync(id);
+            var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == id);
             return tenant is null
                 ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Tenant not found")
                 : Results.Ok(ToResponse(tenant));
