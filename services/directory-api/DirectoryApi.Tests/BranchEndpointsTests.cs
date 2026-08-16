@@ -115,4 +115,28 @@ public class BranchEndpointsTests : IClassFixture<LocalDbTestFixture>
         Assert.All(body!.Items, b => Assert.NotEqual("Tenant B Branch", b.Name));
         Assert.Contains(body.Items, b => b.Name == "Tenant A Branch");
     }
+
+    [Fact]
+    public async Task DeleteBranch_WithTherapyTypeStillAssigned_Returns409()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var branch = await _client.SendAsync(WithTenant(HttpMethod.Post, "/branches", tenantId, new CreateBranchRequest
+        {
+            Name = "Branch With Therapy",
+            WeeklyDayOff = DayOfWeek.Sunday,
+            DiscountTiers = ValidTiers()
+        }));
+        var branchBody = await branch.Content.ReadFromJsonAsync<BranchResponse>();
+
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapy-types", tenantId, new CreateTherapyTypeRequest
+        {
+            Name = "Occupational Therapy",
+            BranchIds = [branchBody!.Id]
+        }));
+
+        var deleteResponse = await _client.SendAsync(WithTenant(HttpMethod.Delete, $"/branches/{branchBody.Id}", tenantId));
+
+        Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
+    }
 }

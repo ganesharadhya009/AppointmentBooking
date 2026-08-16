@@ -28,6 +28,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "Dire
 
 app.MapTenantEndpoints();
 app.MapBranchEndpoints();
+app.MapTherapyTypeEndpoints();
 
 app.Run();
 
