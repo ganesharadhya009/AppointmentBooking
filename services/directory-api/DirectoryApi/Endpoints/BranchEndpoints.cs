@@ -97,22 +97,15 @@ public static class BranchEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["discountTiers"] = [error!] });
             }
 
-            var branch = await db.Branches.Include(b => b.DiscountTiers).FirstOrDefaultAsync(b => b.Id == id);
-            if (branch is null)
+            // A lightweight existence check only (no tracked entity) — the actual entity used for
+            // the update is loaded fresh inside the execution-strategy delegate below, so that a
+            // retried attempt after a transient fault re-queries committed state instead of reusing
+            // a possibly-stale, never-actually-committed in-memory instance from the failed attempt.
+            var branchExists = await db.Branches.AnyAsync(b => b.Id == id);
+            if (!branchExists)
             {
                 return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Branch not found");
             }
-
-            branch.Name = request.Name;
-            branch.Address = request.Address;
-            branch.Country = request.Country;
-            branch.State = request.State;
-            branch.City = request.City;
-            branch.Latitude = request.Latitude;
-            branch.Longitude = request.Longitude;
-            branch.WeeklyDayOff = request.WeeklyDayOff;
-            branch.PhotoUrl = request.PhotoUrl;
-            branch.IsActive = request.IsActive;
 
             // Deleting old tiers and inserting new ones in the same SaveChangesAsync call can
             // violate the unique (BranchId, SessionCount) index if EF orders the INSERT before
@@ -124,10 +117,27 @@ public static class BranchEndpoints
             // The transaction runs through the DbContext's execution strategy (rather than a bare
             // BeginTransactionAsync) because the SqlServer provider is configured with
             // EnableRetryOnFailure() — a retrying execution strategy refuses user-initiated
-            // transactions started any other way.
+            // transactions started any other way. The entity is loaded and mutated *inside* the
+            // delegate (not captured from an outer load) so every retry attempt starts from a
+            // fresh, actually-committed instance rather than reusing tracked-but-rolled-back state
+            // from a prior failed attempt.
+            Branch branch = null!;
             var strategy = db.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
+                branch = await db.Branches.Include(b => b.DiscountTiers).FirstAsync(b => b.Id == id);
+
+                branch.Name = request.Name;
+                branch.Address = request.Address;
+                branch.Country = request.Country;
+                branch.State = request.State;
+                branch.City = request.City;
+                branch.Latitude = request.Latitude;
+                branch.Longitude = request.Longitude;
+                branch.WeeklyDayOff = request.WeeklyDayOff;
+                branch.PhotoUrl = request.PhotoUrl;
+                branch.IsActive = request.IsActive;
+
                 await using var transaction = await db.Database.BeginTransactionAsync();
 
                 db.BranchDiscountTiers.RemoveRange(branch.DiscountTiers);

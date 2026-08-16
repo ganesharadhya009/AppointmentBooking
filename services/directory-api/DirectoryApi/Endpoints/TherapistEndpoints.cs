@@ -107,32 +107,28 @@ public static class TherapistEndpoints
                 return Results.ValidationProblem(referenceErrors);
             }
 
-            var therapist = await db.Therapists
-                .Include(t => t.Assignments).ThenInclude(a => a.SessionWindows)
-                .FirstOrDefaultAsync(t => t.Id == id);
-            if (therapist is null)
+            // A lightweight projection only (no tracked entity) — just enough to run the 404 and
+            // deleted-reactivation checks. The actual entity used for the update is loaded fresh
+            // inside the execution-strategy delegate below, so that a retried attempt after a
+            // transient fault re-queries committed state instead of reusing a possibly-stale,
+            // never-actually-committed in-memory instance (and its navigation collection) from the
+            // failed attempt.
+            var existingTherapist = await db.Therapists
+                .Where(t => t.Id == id)
+                .Select(t => new { t.Status })
+                .FirstOrDefaultAsync();
+            if (existingTherapist is null)
             {
                 return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Therapist not found");
             }
 
-            if (therapist.Status == TherapistStatus.Deleted && request.Status != TherapistStatus.Deleted)
+            if (existingTherapist.Status == TherapistStatus.Deleted && request.Status != TherapistStatus.Deleted)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["status"] = ["A deleted therapist cannot be reactivated."]
                 });
             }
-
-            therapist.Name = request.Name;
-            therapist.MobileNumber = request.MobileNumber;
-            therapist.Email = request.Email;
-            therapist.LicenseNumber = request.LicenseNumber;
-            therapist.Gender = request.Gender;
-            therapist.Designation = request.Designation;
-            therapist.PhotoUrl = request.PhotoUrl;
-            therapist.CertificateUrl = request.CertificateUrl;
-            therapist.SignatureUrl = request.SignatureUrl;
-            therapist.Status = request.Status;
 
             // The delete-then-insert assignment replacement below is two separate
             // SaveChangesAsync calls (see BranchEndpoints.cs for why a single call can't
@@ -142,10 +138,29 @@ public static class TherapistEndpoints
             // The transaction itself must run through the DbContext's execution strategy
             // (rather than a bare BeginTransactionAsync) because the SqlServer provider is
             // configured with EnableRetryOnFailure() — a retrying execution strategy refuses
-            // user-initiated transactions started any other way.
+            // user-initiated transactions started any other way. The entity is loaded and mutated
+            // *inside* the delegate (not captured from an outer load) so every retry attempt starts
+            // from a fresh, actually-committed instance rather than reusing tracked-but-rolled-back
+            // state from a prior failed attempt.
+            Therapist therapist = null!;
             var strategy = db.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
+                therapist = await db.Therapists
+                    .Include(t => t.Assignments).ThenInclude(a => a.SessionWindows)
+                    .FirstAsync(t => t.Id == id);
+
+                therapist.Name = request.Name;
+                therapist.MobileNumber = request.MobileNumber;
+                therapist.Email = request.Email;
+                therapist.LicenseNumber = request.LicenseNumber;
+                therapist.Gender = request.Gender;
+                therapist.Designation = request.Designation;
+                therapist.PhotoUrl = request.PhotoUrl;
+                therapist.CertificateUrl = request.CertificateUrl;
+                therapist.SignatureUrl = request.SignatureUrl;
+                therapist.Status = request.Status;
+
                 await using var transaction = await db.Database.BeginTransactionAsync();
 
                 var existingWindows = therapist.Assignments.SelectMany(a => a.SessionWindows).ToList();
