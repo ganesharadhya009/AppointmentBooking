@@ -11,6 +11,9 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<BranchDiscountTier> BranchDiscountTiers => Set<BranchDiscountTier>();
     public DbSet<TherapyType> TherapyTypes => Set<TherapyType>();
+    public DbSet<Therapist> Therapists => Set<Therapist>();
+    public DbSet<TherapistAssignment> TherapistAssignments => Set<TherapistAssignment>();
+    public DbSet<TherapistSessionWindow> TherapistSessionWindows => Set<TherapistSessionWindow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +53,35 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             t.HasMany(x => x.Branches)
                 .WithMany(x => x.TherapyTypes)
                 .UsingEntity(j => j.ToTable("TherapyTypeBranch"));
+        });
+
+        modelBuilder.Entity<Therapist>(t =>
+        {
+            t.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            t.Property(x => x.Name).HasMaxLength(200);
+            t.Property(x => x.MobileNumber).HasMaxLength(20);
+            t.Property(x => x.Email).HasMaxLength(200);
+            t.Property(x => x.LicenseNumber).HasMaxLength(100);
+            t.Property(x => x.Gender).HasMaxLength(20);
+            t.Property(x => x.Designation).HasMaxLength(200);
+            t.HasIndex(x => x.TenantId);
+            t.HasMany(x => x.Assignments)
+                .WithOne()
+                .HasForeignKey(a => a.TherapistId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TherapistAssignment>(a =>
+        {
+            a.HasMany(x => x.SessionWindows)
+                .WithOne()
+                .HasForeignKey(w => w.AssignmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TherapistSessionWindow>(w =>
+        {
+            w.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
         });
     }
 }

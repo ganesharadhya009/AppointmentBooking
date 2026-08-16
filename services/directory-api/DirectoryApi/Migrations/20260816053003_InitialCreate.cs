@@ -50,6 +50,30 @@ namespace DirectoryApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Therapists",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    MobileNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    LicenseNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Gender = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    Designation = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    PhotoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CertificateUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SignatureUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Therapists", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "TherapyTypes",
                 columns: table => new
                 {
@@ -88,6 +112,30 @@ namespace DirectoryApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "TherapistAssignments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TherapistId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    BranchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TherapyTypeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    JoiningDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    WeeklyDayOff = table.Column<int>(type: "int", nullable: false),
+                    LunchBreakStart = table.Column<TimeOnly>(type: "time", nullable: true),
+                    LunchBreakEnd = table.Column<TimeOnly>(type: "time", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TherapistAssignments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TherapistAssignments_Therapists_TherapistId",
+                        column: x => x.TherapistId,
+                        principalTable: "Therapists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "TherapyTypeBranch",
                 columns: table => new
                 {
@@ -111,6 +159,28 @@ namespace DirectoryApi.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "TherapistSessionWindows",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AssignmentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    WindowName = table.Column<int>(type: "int", nullable: false),
+                    StartTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    PricePerSession = table.Column<decimal>(type: "decimal(10,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TherapistSessionWindows", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TherapistSessionWindows_TherapistAssignments_AssignmentId",
+                        column: x => x.AssignmentId,
+                        principalTable: "TherapistAssignments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_BranchDiscountTiers_BranchId_SessionCount",
                 table: "BranchDiscountTiers",
@@ -126,6 +196,21 @@ namespace DirectoryApi.Migrations
                 name: "IX_Branches_TenantId",
                 table: "Branches",
                 column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TherapistAssignments_TherapistId",
+                table: "TherapistAssignments",
+                column: "TherapistId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Therapists_TenantId",
+                table: "Therapists",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TherapistSessionWindows_AssignmentId",
+                table: "TherapistSessionWindows",
+                column: "AssignmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TherapyTypeBranch_TherapyTypesId",
@@ -148,13 +233,22 @@ namespace DirectoryApi.Migrations
                 name: "Tenants");
 
             migrationBuilder.DropTable(
+                name: "TherapistSessionWindows");
+
+            migrationBuilder.DropTable(
                 name: "TherapyTypeBranch");
+
+            migrationBuilder.DropTable(
+                name: "TherapistAssignments");
 
             migrationBuilder.DropTable(
                 name: "Branches");
 
             migrationBuilder.DropTable(
                 name: "TherapyTypes");
+
+            migrationBuilder.DropTable(
+                name: "Therapists");
         }
     }
 }

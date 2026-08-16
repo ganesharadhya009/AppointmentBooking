@@ -146,6 +146,132 @@ namespace DirectoryApi.Migrations
                     b.ToTable("Tenants");
                 });
 
+            modelBuilder.Entity("DirectoryApi.Entities.Therapist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CertificateUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Designation")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("LicenseNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("MobileNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SignatureUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Therapists");
+                });
+
+            modelBuilder.Entity("DirectoryApi.Entities.TherapistAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("JoiningDate")
+                        .HasColumnType("date");
+
+                    b.Property<TimeOnly?>("LunchBreakEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("LunchBreakStart")
+                        .HasColumnType("time");
+
+                    b.Property<Guid>("TherapistId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TherapyTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("WeeklyDayOff")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TherapistId");
+
+                    b.ToTable("TherapistAssignments");
+                });
+
+            modelBuilder.Entity("DirectoryApi.Entities.TherapistSessionWindow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AssignmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<decimal>("PricePerSession")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<int>("WindowName")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.ToTable("TherapistSessionWindows");
+                });
+
             modelBuilder.Entity("DirectoryApi.Entities.TherapyType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -204,9 +330,37 @@ namespace DirectoryApi.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DirectoryApi.Entities.TherapistAssignment", b =>
+                {
+                    b.HasOne("DirectoryApi.Entities.Therapist", null)
+                        .WithMany("Assignments")
+                        .HasForeignKey("TherapistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DirectoryApi.Entities.TherapistSessionWindow", b =>
+                {
+                    b.HasOne("DirectoryApi.Entities.TherapistAssignment", null)
+                        .WithMany("SessionWindows")
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DirectoryApi.Entities.Branch", b =>
                 {
                     b.Navigation("DiscountTiers");
+                });
+
+            modelBuilder.Entity("DirectoryApi.Entities.Therapist", b =>
+                {
+                    b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("DirectoryApi.Entities.TherapistAssignment", b =>
+                {
+                    b.Navigation("SessionWindows");
                 });
 #pragma warning restore 612, 618
         }
