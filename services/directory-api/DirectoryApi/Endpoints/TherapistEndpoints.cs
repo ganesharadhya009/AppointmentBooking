@@ -79,7 +79,7 @@ public static class TherapistEndpoints
                 Status = TherapistStatus.Active,
                 CreatedAt = DateTimeOffset.UtcNow,
                 CreatedBy = "system",
-                Assignments = BuildAssignments(request.Assignments)
+                Assignments = BuildAssignments(request.Assignments, tenantContext.TenantId)
             };
 
             db.Therapists.Add(therapist);
@@ -88,7 +88,7 @@ public static class TherapistEndpoints
             return Results.Created($"/therapists/{therapist.Id}", ToResponse(therapist));
         });
 
-        group.MapPut("/{id:guid}", async (Guid id, UpdateTherapistRequest request, DirectoryDbContext db) =>
+        group.MapPut("/{id:guid}", async (Guid id, UpdateTherapistRequest request, DirectoryDbContext db, ITenantContext tenantContext) =>
         {
             var validationErrors = DataAnnotationsValidator.Validate(request);
             if (validationErrors is not null)
@@ -176,7 +176,7 @@ public static class TherapistEndpoints
                 therapist.Assignments.Clear();
                 await db.SaveChangesAsync();
 
-                var newAssignments = BuildAssignments(request.Assignments);
+                var newAssignments = BuildAssignments(request.Assignments, tenantContext.TenantId);
                 foreach (var assignment in newAssignments)
                 {
                     assignment.TherapistId = therapist.Id;
@@ -230,13 +230,14 @@ public static class TherapistEndpoints
         return errors.Count > 0 ? errors : null;
     }
 
-    private static List<TherapistAssignment> BuildAssignments(List<AssignmentDto> dtos) =>
+    private static List<TherapistAssignment> BuildAssignments(List<AssignmentDto> dtos, Guid tenantId) =>
         dtos.Select(a =>
         {
             var assignmentId = Guid.NewGuid();
             return new TherapistAssignment
             {
                 Id = assignmentId,
+                TenantId = tenantId,
                 BranchId = a.BranchId,
                 TherapyTypeId = a.TherapyTypeId,
                 JoiningDate = a.JoiningDate,
@@ -246,6 +247,7 @@ public static class TherapistEndpoints
                 SessionWindows = a.SessionWindows.Select(w => new TherapistSessionWindow
                 {
                     Id = Guid.NewGuid(),
+                    TenantId = tenantId,
                     AssignmentId = assignmentId,
                     WindowName = w.WindowName,
                     StartTime = w.StartTime,

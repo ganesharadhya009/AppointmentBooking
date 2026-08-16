@@ -226,4 +226,38 @@ public class TherapistEndpointsTests : IClassFixture<LocalDbTestFixture>
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task ListTherapists_NeverReturnsAnotherTenantsTherapists()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var (branchIdA, therapyTypeIdA) = await CreateBranchAndTherapyTypeAsync(tenantA);
+        var (branchIdB, therapyTypeIdB) = await CreateBranchAndTherapyTypeAsync(tenantB);
+
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapists", tenantA, new CreateTherapistRequest
+        {
+            Name = "Tenant A Therapist",
+            MobileNumber = "9999999999",
+            Email = "tenanta@example.com",
+            LicenseNumber = "LIC-A",
+            Designation = "Occupational Therapist",
+            Assignments = [BuildAssignment(branchIdA, therapyTypeIdA)]
+        }));
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapists", tenantB, new CreateTherapistRequest
+        {
+            Name = "Tenant B Therapist",
+            MobileNumber = "9999999999",
+            Email = "tenantb@example.com",
+            LicenseNumber = "LIC-B",
+            Designation = "Occupational Therapist",
+            Assignments = [BuildAssignment(branchIdB, therapyTypeIdB)]
+        }));
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, "/therapists", tenantA));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<TherapistResponse>>();
+
+        Assert.All(body!.Items, t => Assert.NotEqual("Tenant B Therapist", t.Name));
+        Assert.Contains(body.Items, t => t.Name == "Tenant A Therapist");
+    }
 }

@@ -73,6 +73,8 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
 
         modelBuilder.Entity<TherapistAssignment>(a =>
         {
+            a.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            a.HasIndex(x => x.TenantId);
             a.HasMany(x => x.SessionWindows)
                 .WithOne()
                 .HasForeignKey(w => w.AssignmentId)
@@ -81,6 +83,8 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
 
         modelBuilder.Entity<TherapistSessionWindow>(w =>
         {
+            w.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            w.HasIndex(x => x.TenantId);
             w.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
         });
     }

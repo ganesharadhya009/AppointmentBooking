@@ -98,4 +98,16 @@ public class TherapistValidatorTests
         Assert.False(result);
         Assert.NotNull(error);
     }
+
+    [Fact]
+    public void IsValid_ReturnsFalse_WhenSessionWindowsIsNull()
+    {
+        var assignment = ValidAssignment();
+        assignment.SessionWindows = null!;
+
+        var result = TherapistValidator.IsValid([assignment], out var error);
+
+        Assert.False(result);
+        Assert.NotNull(error);
+    }
 }

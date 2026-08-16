@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DirectoryApi.Migrations
 {
     [DbContext(typeof(DirectoryDbContext))]
-    [Migration("20260816053003_InitialCreate")]
+    [Migration("20260816132832_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -231,6 +231,9 @@ namespace DirectoryApi.Migrations
                     b.Property<TimeOnly?>("LunchBreakStart")
                         .HasColumnType("time");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("TherapistId")
                         .HasColumnType("uniqueidentifier");
 
@@ -241,6 +244,8 @@ namespace DirectoryApi.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("TherapistId");
 
@@ -265,12 +270,17 @@ namespace DirectoryApi.Migrations
                     b.Property<TimeOnly>("StartTime")
                         .HasColumnType("time");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("WindowName")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AssignmentId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("TherapistSessionWindows");
                 });

@@ -116,6 +116,7 @@ namespace DirectoryApi.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TherapistId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BranchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TherapyTypeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -164,6 +165,7 @@ namespace DirectoryApi.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     AssignmentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     WindowName = table.Column<int>(type: "int", nullable: false),
                     StartTime = table.Column<TimeOnly>(type: "time", nullable: false),
@@ -198,6 +200,11 @@ namespace DirectoryApi.Migrations
                 column: "TenantId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_TherapistAssignments_TenantId",
+                table: "TherapistAssignments",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TherapistAssignments_TherapistId",
                 table: "TherapistAssignments",
                 column: "TherapistId");
@@ -211,6 +218,11 @@ namespace DirectoryApi.Migrations
                 name: "IX_TherapistSessionWindows_AssignmentId",
                 table: "TherapistSessionWindows",
                 column: "AssignmentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TherapistSessionWindows_TenantId",
+                table: "TherapistSessionWindows",
+                column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TherapyTypeBranch_TherapyTypesId",
