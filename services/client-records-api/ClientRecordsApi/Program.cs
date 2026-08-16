@@ -1,4 +1,5 @@
 using ClientRecordsApi.Data;
+using ClientRecordsApi.Endpoints;
 using ClientRecordsApi.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,7 @@ app.UseStatusCodePages();
 app.UseMiddleware<TenantIdMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "ClientRecordsApi" }));
+app.MapParentEndpoints();
 
 app.Run();
 
