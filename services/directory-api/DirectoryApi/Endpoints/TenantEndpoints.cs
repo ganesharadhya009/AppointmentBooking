@@ -7,6 +7,11 @@ namespace DirectoryApi.Endpoints;
 
 public static class TenantEndpoints
 {
+    // SECURITY: these endpoints are intentionally unauthenticated for now — no user
+    // identity system exists yet (see design spec §7, "Migration to Real Auth").
+    // Do NOT expose this service publicly until real Auth0 authorization is wired
+    // up here; until then, /tenants must only be reachable from a trusted network
+    // (internal tooling / onboarding pipeline), not the public internet.
     public static void MapTenantEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/tenants");
