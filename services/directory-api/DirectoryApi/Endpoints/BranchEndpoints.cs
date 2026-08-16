@@ -125,6 +125,13 @@ public static class BranchEndpoints
             var strategy = db.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
+                // Must be the first line in the delegate: `db` is the same DbContext instance
+                // across retry attempts, so without clearing its change tracker, a tracking query
+                // for an already-tracked key would hand back the *existing tracked instance* from
+                // a prior failed attempt (with its in-memory, never-committed mutations still on
+                // it) instead of fresh values reflecting the actually-committed (rolled-back) row.
+                db.ChangeTracker.Clear();
+
                 branch = await db.Branches.Include(b => b.DiscountTiers).FirstAsync(b => b.Id == id);
 
                 branch.Name = request.Name;
