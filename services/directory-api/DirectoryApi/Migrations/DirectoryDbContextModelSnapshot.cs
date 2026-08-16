@@ -104,6 +104,9 @@ namespace DirectoryApi.Migrations
                     b.Property<int>("SessionCount")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BranchId", "SessionCount")

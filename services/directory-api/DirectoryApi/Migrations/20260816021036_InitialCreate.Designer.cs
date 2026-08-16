@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DirectoryApi.Migrations
 {
     [DbContext(typeof(DirectoryDbContext))]
-    [Migration("20260816020318_InitialCreate")]
+    [Migration("20260816021036_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -106,6 +106,9 @@ namespace DirectoryApi.Migrations
 
                     b.Property<int>("SessionCount")
                         .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 

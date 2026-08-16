@@ -71,6 +71,7 @@ namespace DirectoryApi.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BranchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     SessionCount = table.Column<int>(type: "int", nullable: false),
                     DiscountPerSession = table.Column<decimal>(type: "decimal(10,2)", nullable: false)

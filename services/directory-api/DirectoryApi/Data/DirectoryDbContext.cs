@@ -25,6 +25,7 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
 
         modelBuilder.Entity<BranchDiscountTier>(t =>
         {
+            t.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             t.HasIndex(x => new { x.BranchId, x.SessionCount }).IsUnique();
             t.Property(x => x.DiscountPerSession).HasColumnType("decimal(10,2)");
         });
