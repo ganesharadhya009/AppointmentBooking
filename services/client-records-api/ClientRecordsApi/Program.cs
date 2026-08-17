@@ -29,6 +29,7 @@ app.UseMiddleware<TenantIdMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "ClientRecordsApi" }));
 app.MapParentEndpoints();
+app.MapChildEndpoints();
 
 app.Run();
 
