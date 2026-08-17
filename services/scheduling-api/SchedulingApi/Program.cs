@@ -1,5 +1,6 @@
 using SchedulingApi.Clients;
 using SchedulingApi.Data;
+using SchedulingApi.Endpoints;
 using SchedulingApi.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,7 @@ app.UseStatusCodePages();
 app.UseMiddleware<TenantIdMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "SchedulingApi" }));
+app.MapAppointmentEndpoints();
 
 app.Run();
 
