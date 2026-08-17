@@ -45,7 +45,7 @@ public static class AppointmentEndpoints
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
 
-            var query = db.Appointments.OrderByDescending(a => a.AppointmentDate);
+            var query = db.Appointments.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.CreatedAt).ThenBy(a => a.Id);
             var totalCount = await query.CountAsync();
             var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
 
@@ -157,8 +157,14 @@ public static class AppointmentEndpoints
             {
                 await db.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
             {
+                db.ChangeTracker.Clear();
+                var raced = await db.Appointments.AsNoTracking().FirstOrDefaultAsync(a => a.IdempotencyKey == idempotencyKey);
+                if (raced is not null)
+                {
+                    return Results.Created($"/appointments/{raced.Id}", ToResponse(raced));
+                }
                 return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This session window is already booked for the requested date.");
             }
 
@@ -226,7 +232,7 @@ public static class AppointmentEndpoints
             {
                 await db.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
             {
                 return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This session window is already booked for the requested date.");
             }
@@ -246,6 +252,9 @@ public static class AppointmentEndpoints
             return Results.NoContent();
         });
     }
+
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
 
     private static AppointmentResponse ToResponse(Appointment appointment) => new()
     {
