@@ -44,3 +44,12 @@ public class AppointmentResponse
     public decimal PricePerSession { get; set; }
     public AppointmentStatus Status { get; set; }
 }
+
+public class UpdateAppointmentRequest
+{
+    [Required]
+    public Entities.SessionWindowName? WindowName { get; set; }
+
+    [Required]
+    public DateOnly? AppointmentDate { get; set; }
+}

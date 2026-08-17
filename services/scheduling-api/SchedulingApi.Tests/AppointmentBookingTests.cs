@@ -98,7 +98,7 @@ public class AppointmentBookingTests : IClassFixture<LocalDbTestFixture>
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact(Skip = "Depends on GET /appointments — enabled in Task 5")]
+    [Fact]
     public async Task PostAppointment_WithSameIdempotencyKeyTwice_ReturnsTheSameAppointmentBothTimes_OnlyOneRowPersisted()
     {
         var tenantId = Guid.NewGuid();

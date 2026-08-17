@@ -1,4 +1,5 @@
 using SchedulingApi.Clients;
+using SchedulingApi.Common;
 using SchedulingApi.Data;
 using SchedulingApi.Dtos;
 using SchedulingApi.Entities;
@@ -38,6 +39,32 @@ public static class AppointmentEndpoints
         });
 
         var group = app.MapGroup("/appointments");
+
+        group.MapGet("", async (int? page, int? pageSize, SchedulingDbContext db) =>
+        {
+            var currentPage = page is null or <= 0 ? 1 : page.Value;
+            var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
+
+            var query = db.Appointments.OrderByDescending(a => a.AppointmentDate);
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
+
+            return Results.Ok(new PagedResult<AppointmentResponse>
+            {
+                Items = items.Select(ToResponse).ToList(),
+                Page = currentPage,
+                PageSize = currentPageSize,
+                TotalCount = totalCount
+            });
+        });
+
+        group.MapGet("/{id:guid}", async (Guid id, SchedulingDbContext db) =>
+        {
+            var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.Id == id);
+            return appointment is null
+                ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Appointment not found")
+                : Results.Ok(ToResponse(appointment));
+        });
 
         group.MapPost("", async (CreateAppointmentRequest request, HttpRequest httpRequest, SchedulingDbContext db, IDirectoryApiClient directoryClient, IClientRecordsApiClient clientRecordsClient, ITenantContext tenantContext) =>
         {
@@ -125,6 +152,65 @@ public static class AppointmentEndpoints
             await db.SaveChangesAsync();
 
             return Results.Created($"/appointments/{appointment.Id}", ToResponse(appointment));
+        });
+
+        group.MapPut("/{id:guid}", async (Guid id, UpdateAppointmentRequest request, SchedulingDbContext db, IDirectoryApiClient directoryClient, ITenantContext tenantContext) =>
+        {
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
+            var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.Id == id);
+            if (appointment is null)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Appointment not found");
+            }
+
+            var therapist = await directoryClient.GetTherapistAsync(appointment.TherapistId, tenantContext.TenantId);
+            var assignment = therapist?.Assignments.FirstOrDefault(a => a.BranchId == appointment.BranchId && a.TherapyTypeId == appointment.TherapyTypeId);
+            var clientWindowName = (SchedulingApi.Clients.SessionWindowName)(int)request.WindowName!.Value;
+            var sessionWindow = assignment?.SessionWindows.FirstOrDefault(w => w.WindowName == clientWindowName);
+            if (sessionWindow is null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["windowName"] = ["This therapist does not have that session window for this branch/therapy type."] });
+            }
+
+            var conflict = await db.Appointments.AnyAsync(a =>
+                a.Id != id &&
+                a.BranchId == appointment.BranchId &&
+                a.TherapistId == appointment.TherapistId &&
+                a.TherapyTypeId == appointment.TherapyTypeId &&
+                a.WindowName == request.WindowName!.Value &&
+                a.AppointmentDate == request.AppointmentDate!.Value &&
+                a.Status != AppointmentStatus.Cancelled);
+            if (conflict)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This session window is already booked for the requested date.");
+            }
+
+            appointment.WindowName = request.WindowName!.Value;
+            appointment.AppointmentDate = request.AppointmentDate!.Value;
+            appointment.StartTime = sessionWindow.StartTime;
+            appointment.EndTime = sessionWindow.EndTime;
+            appointment.PricePerSession = sessionWindow.PricePerSession;
+
+            await db.SaveChangesAsync();
+            return Results.Ok(ToResponse(appointment));
+        });
+
+        group.MapDelete("/{id:guid}", async (Guid id, SchedulingDbContext db) =>
+        {
+            var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.Id == id);
+            if (appointment is null)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Appointment not found");
+            }
+
+            appointment.Status = AppointmentStatus.Cancelled;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
         });
     }
 
