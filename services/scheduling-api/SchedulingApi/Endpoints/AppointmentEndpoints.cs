@@ -18,7 +18,7 @@ public static class AppointmentEndpoints
         app.MapGet("/availability", async (Guid branchId, Guid therapistId, Guid therapyTypeId, DateOnly date, SchedulingDbContext db, IDirectoryApiClient directoryClient, ITenantContext tenantContext) =>
         {
             var therapist = await directoryClient.GetTherapistAsync(therapistId, tenantContext.TenantId);
-            if (therapist is null)
+            if (therapist is null || therapist.Status != RemoteStatus.Active)
             {
                 return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Therapist not found");
             }
@@ -79,6 +79,10 @@ public static class AppointmentEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Missing Idempotency-Key header", detail: "POST /appointments requires an Idempotency-Key header.");
             }
             var idempotencyKey = idempotencyKeyValues.ToString();
+            if (idempotencyKey!.Length > 200)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Idempotency-Key header is too long", detail: "Idempotency-Key must be 200 characters or fewer.");
+            }
 
             var existing = await db.Appointments.FirstOrDefaultAsync(a => a.IdempotencyKey == idempotencyKey);
             if (existing is not null)
@@ -149,7 +153,14 @@ public static class AppointmentEndpoints
             };
 
             db.Appointments.Add(appointment);
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This session window is already booked for the requested date.");
+            }
 
             return Results.Created($"/appointments/{appointment.Id}", ToResponse(appointment));
         });
@@ -168,8 +179,23 @@ public static class AppointmentEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Appointment not found");
             }
 
+            if (appointment.Status == AppointmentStatus.Cancelled)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Appointment is cancelled", detail: "A cancelled appointment cannot be rescheduled.");
+            }
+
+            if (appointment.Status == AppointmentStatus.Completed)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Appointment is completed", detail: "A completed appointment cannot be rescheduled.");
+            }
+
             var therapist = await directoryClient.GetTherapistAsync(appointment.TherapistId, tenantContext.TenantId);
-            var assignment = therapist?.Assignments.FirstOrDefault(a => a.BranchId == appointment.BranchId && a.TherapyTypeId == appointment.TherapyTypeId);
+            if (therapist is null || therapist.Status != RemoteStatus.Active)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["therapistId"] = ["Therapist not found or not active."] });
+            }
+
+            var assignment = therapist.Assignments.FirstOrDefault(a => a.BranchId == appointment.BranchId && a.TherapyTypeId == appointment.TherapyTypeId);
             var clientWindowName = (SchedulingApi.Clients.SessionWindowName)(int)request.WindowName!.Value;
             var sessionWindow = assignment?.SessionWindows.FirstOrDefault(w => w.WindowName == clientWindowName);
             if (sessionWindow is null)
@@ -196,7 +222,14 @@ public static class AppointmentEndpoints
             appointment.EndTime = sessionWindow.EndTime;
             appointment.PricePerSession = sessionWindow.PricePerSession;
 
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This session window is already booked for the requested date.");
+            }
             return Results.Ok(ToResponse(appointment));
         });
 

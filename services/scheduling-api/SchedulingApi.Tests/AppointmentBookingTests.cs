@@ -128,7 +128,7 @@ public class AppointmentBookingTests : IClassFixture<LocalDbTestFixture>
 
         var listResponse = await _client.SendAsync(WithTenant(HttpMethod.Get, "/appointments", tenantId));
         var listBody = await listResponse.Content.ReadFromJsonAsync<Common.PagedResult<AppointmentResponse>>();
-        Assert.Single(listBody!.Items.Where(a => a.Id == firstBody.Id));
+        Assert.Single(listBody!.Items, a => a.Id == firstBody.Id);
     }
 
     [Fact]
@@ -173,5 +173,114 @@ public class AppointmentBookingTests : IClassFixture<LocalDbTestFixture>
         var secondBooking = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), request));
 
         Assert.Equal(HttpStatusCode.Conflict, secondBooking.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostAppointment_WithTherapistNotFound_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(branchId, therapistId, therapyTypeId, childId);
+        _fixture.DirectoryApiClient.TherapistToReturn = null;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), new CreateAppointmentRequest
+        {
+            BranchId = branchId,
+            TherapistId = therapistId,
+            TherapyTypeId = therapyTypeId,
+            ChildId = childId,
+            WindowName = SchedulingApi.Entities.SessionWindowName.Morning,
+            AppointmentDate = new DateOnly(2026, 9, 1)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostAppointment_WithInactiveTherapist_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(branchId, therapistId, therapyTypeId, childId);
+        _fixture.DirectoryApiClient.TherapistToReturn!.Status = RemoteStatus.Inactive;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), new CreateAppointmentRequest
+        {
+            BranchId = branchId,
+            TherapistId = therapistId,
+            TherapyTypeId = therapyTypeId,
+            ChildId = childId,
+            WindowName = SchedulingApi.Entities.SessionWindowName.Morning,
+            AppointmentDate = new DateOnly(2026, 9, 1)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostAppointment_WithTherapistNotAssignedToBranchOrTherapyType_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(branchId, therapistId, therapyTypeId, childId);
+        _fixture.DirectoryApiClient.TherapistToReturn = new TherapistInfo
+        {
+            Id = therapistId,
+            Status = RemoteStatus.Active,
+            Assignments =
+            [
+                new TherapistAssignmentInfo
+                {
+                    BranchId = Guid.NewGuid(),
+                    TherapyTypeId = Guid.NewGuid(),
+                    SessionWindows = [new SessionWindowInfo { WindowName = SchedulingApi.Clients.SessionWindowName.Morning, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(12, 0), PricePerSession = 500 }]
+                }
+            ]
+        };
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), new CreateAppointmentRequest
+        {
+            BranchId = branchId,
+            TherapistId = therapistId,
+            TherapyTypeId = therapyTypeId,
+            ChildId = childId,
+            WindowName = SchedulingApi.Entities.SessionWindowName.Morning,
+            AppointmentDate = new DateOnly(2026, 9, 1)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostAppointment_WithChildNotFound_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(branchId, therapistId, therapyTypeId, childId);
+        _fixture.ClientRecordsApiClient.ChildToReturn = null;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), new CreateAppointmentRequest
+        {
+            BranchId = branchId,
+            TherapistId = therapistId,
+            TherapyTypeId = therapyTypeId,
+            ChildId = childId,
+            WindowName = SchedulingApi.Entities.SessionWindowName.Morning,
+            AppointmentDate = new DateOnly(2026, 9, 1)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

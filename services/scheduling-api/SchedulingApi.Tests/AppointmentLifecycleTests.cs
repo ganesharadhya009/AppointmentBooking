@@ -136,4 +136,102 @@ public class AppointmentLifecycleTests : IClassFixture<LocalDbTestFixture>
 
         Assert.Contains(SchedulingApi.Clients.SessionWindowName.Morning, availabilityBody!.AvailableWindows);
     }
+
+    [Fact]
+    public async Task PutAppointment_OnCancelledAppointment_Returns409()
+    {
+        var tenantId = Guid.NewGuid();
+        var (appointmentId, _, _, _, _) = await BookAnAppointmentAsync(tenantId);
+
+        var deleteResponse = await _client.SendAsync(WithTenant(HttpMethod.Delete, $"/appointments/{appointmentId}", tenantId));
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/appointments/{appointmentId}", tenantId, body: new UpdateAppointmentRequest
+        {
+            WindowName = SchedulingApi.Entities.SessionWindowName.Afternoon,
+            AppointmentDate = new DateOnly(2026, 9, 1)
+        }));
+
+        Assert.Equal(HttpStatusCode.Conflict, putResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PutAppointment_WithInactiveTherapist_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var (appointmentId, branchId, therapistId, therapyTypeId, _) = await BookAnAppointmentAsync(tenantId);
+
+        _fixture.DirectoryApiClient.TherapistToReturn = new TherapistInfo
+        {
+            Id = therapistId,
+            Status = RemoteStatus.Inactive,
+            Assignments =
+            [
+                new TherapistAssignmentInfo
+                {
+                    BranchId = branchId,
+                    TherapyTypeId = therapyTypeId,
+                    SessionWindows =
+                    [
+                        new SessionWindowInfo { WindowName = SchedulingApi.Clients.SessionWindowName.Morning, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(12, 0), PricePerSession = 500 },
+                        new SessionWindowInfo { WindowName = SchedulingApi.Clients.SessionWindowName.Afternoon, StartTime = new TimeOnly(14, 0), EndTime = new TimeOnly(16, 0), PricePerSession = 600 }
+                    ]
+                }
+            ]
+        };
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/appointments/{appointmentId}", tenantId, body: new UpdateAppointmentRequest
+        {
+            WindowName = SchedulingApi.Entities.SessionWindowName.Afternoon,
+            AppointmentDate = new DateOnly(2026, 9, 1)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, putResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAvailability_WithInactiveTherapist_Returns404()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+
+        _fixture.DirectoryApiClient.TherapistToReturn = new TherapistInfo
+        {
+            Id = therapistId,
+            Status = RemoteStatus.Inactive,
+            Assignments =
+            [
+                new TherapistAssignmentInfo
+                {
+                    BranchId = branchId,
+                    TherapyTypeId = therapyTypeId,
+                    SessionWindows = [new SessionWindowInfo { WindowName = SchedulingApi.Clients.SessionWindowName.Morning, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(12, 0), PricePerSession = 500 }]
+                }
+            ]
+        };
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get,
+            $"/availability?branchId={branchId}&therapistId={therapistId}&therapyTypeId={therapyTypeId}&date=2026-09-01", tenantId));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListAppointments_ReturnsCorrectPagedResultEnvelope()
+    {
+        var tenantId = Guid.NewGuid();
+        await BookAnAppointmentAsync(tenantId);
+        await BookAnAppointmentAsync(tenantId);
+        await BookAnAppointmentAsync(tenantId);
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, "/appointments?page=1&pageSize=2", tenantId));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<AppointmentResponse>>();
+
+        Assert.Equal(1, body!.Page);
+        Assert.Equal(2, body.PageSize);
+        Assert.Equal(3, body.TotalCount);
+        Assert.Equal(2, body.Items.Count);
+    }
 }

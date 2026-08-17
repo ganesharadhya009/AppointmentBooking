@@ -1,5 +1,6 @@
 namespace SchedulingApi.Entities;
 
+// Member order is load-bearing: cast by integer value to/from the paired SessionWindowName in the other namespace. Do not reorder.
 public enum SessionWindowName
 {
     Morning,

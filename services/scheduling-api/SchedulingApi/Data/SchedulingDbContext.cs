@@ -17,6 +17,7 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
             a.HasIndex(x => x.TenantId);
             a.HasIndex(x => new { x.TenantId, x.BranchId, x.TherapistId, x.TherapyTypeId, x.AppointmentDate });
             a.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
+            a.HasIndex(x => new { x.TenantId, x.BranchId, x.TherapistId, x.TherapyTypeId, x.AppointmentDate, x.WindowName }).IsUnique().HasFilter("[Status] <> 2");
             a.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
             a.Property(x => x.IdempotencyKey).HasMaxLength(200);
             a.Property(x => x.BookedBy).HasMaxLength(200);

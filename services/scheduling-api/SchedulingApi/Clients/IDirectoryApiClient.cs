@@ -7,6 +7,7 @@ public enum RemoteStatus
     Deleted
 }
 
+// Member order is load-bearing: cast by integer value to/from the paired SessionWindowName in the other namespace. Do not reorder.
 public enum SessionWindowName
 {
     Morning,
@@ -19,12 +20,6 @@ public class BranchInfo
 {
     public Guid Id { get; set; }
     public bool IsActive { get; set; }
-}
-
-public class TherapyTypeInfo
-{
-    public Guid Id { get; set; }
-    public RemoteStatus Status { get; set; }
 }
 
 public class SessionWindowInfo
@@ -53,5 +48,4 @@ public interface IDirectoryApiClient
 {
     Task<BranchInfo?> GetBranchAsync(Guid branchId, Guid tenantId, CancellationToken cancellationToken = default);
     Task<TherapistInfo?> GetTherapistAsync(Guid therapistId, Guid tenantId, CancellationToken cancellationToken = default);
-    Task<TherapyTypeInfo?> GetTherapyTypeAsync(Guid therapyTypeId, Guid tenantId, CancellationToken cancellationToken = default);
 }
