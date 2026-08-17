@@ -60,4 +60,25 @@ public class DataLayerFoundationTests : IClassFixture<LocalDbTestFixture>
 
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task NonHealthRequest_WithoutTenantIdHeader_IsRejectedWith400()
+    {
+        var client = _fixture.CreateClient();
+
+        var response = await client.GetAsync("/appointments");
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NonHealthRequest_WithMalformedTenantIdHeader_IsRejectedWith400()
+    {
+        var client = _fixture.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Tenant-Id", "not-a-guid");
+
+        var response = await client.GetAsync("/appointments");
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
