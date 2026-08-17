@@ -1,3 +1,4 @@
+using SchedulingApi.Clients;
 using SchedulingApi.Data;
 using SchedulingApi.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 builder.Services.AddDbContext<SchedulingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("SchedulingDb"), sqlOptions => sqlOptions.EnableRetryOnFailure()));
+builder.Services.AddHttpClient<IDirectoryApiClient, DirectoryApiClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:DirectoryApiBaseUrl"]!);
+});
+builder.Services.AddHttpClient<IClientRecordsApiClient, ClientRecordsApiClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:ClientRecordsApiBaseUrl"]!);
+});
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 

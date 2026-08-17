@@ -1,8 +1,11 @@
+using SchedulingApi.Clients;
 using SchedulingApi.Data;
+using SchedulingApi.Tests.Fakes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -15,6 +18,9 @@ public class LocalDbTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
     public string ConnectionString =>
         $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;";
 
+    public FakeDirectoryApiClient DirectoryApiClient { get; } = new();
+    public FakeClientRecordsApiClient ClientRecordsApiClient { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -24,6 +30,13 @@ public class LocalDbTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:SchedulingDb"] = ConnectionString
             });
+        });
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IDirectoryApiClient>();
+            services.AddSingleton<IDirectoryApiClient>(DirectoryApiClient);
+            services.RemoveAll<IClientRecordsApiClient>();
+            services.AddSingleton<IClientRecordsApiClient>(ClientRecordsApiClient);
         });
     }
 
