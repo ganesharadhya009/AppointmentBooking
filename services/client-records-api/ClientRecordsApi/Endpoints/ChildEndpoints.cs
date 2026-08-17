@@ -63,7 +63,7 @@ public static class ChildEndpoints
                 TenantId = tenantContext.TenantId,
                 ParentId = request.ParentId,
                 Name = request.Name,
-                DateOfBirth = request.DateOfBirth,
+                DateOfBirth = request.DateOfBirth!.Value,
                 Gender = request.Gender,
                 GuardianName = request.GuardianName,
                 Status = ClientStatus.Active,
@@ -102,10 +102,10 @@ public static class ChildEndpoints
 
             child.ParentId = request.ParentId;
             child.Name = request.Name;
-            child.DateOfBirth = request.DateOfBirth;
+            child.DateOfBirth = request.DateOfBirth!.Value;
             child.Gender = request.Gender;
             child.GuardianName = request.GuardianName;
-            child.Status = request.Status;
+            child.Status = request.Status!.Value;
 
             await db.SaveChangesAsync();
             return Results.Ok(ToResponse(child));

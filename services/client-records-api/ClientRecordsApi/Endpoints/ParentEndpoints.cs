@@ -91,7 +91,7 @@ public static class ParentEndpoints
             parent.City = request.City;
             parent.State = request.State;
             parent.Country = request.Country;
-            parent.Status = request.Status;
+            parent.Status = request.Status!.Value;
 
             await db.SaveChangesAsync();
             return Results.Ok(ToResponse(parent));

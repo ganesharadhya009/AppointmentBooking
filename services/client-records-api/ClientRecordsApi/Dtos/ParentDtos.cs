@@ -30,7 +30,7 @@ public class CreateParentRequest
 public class UpdateParentRequest : CreateParentRequest
 {
     [Required]
-    public ClientStatus Status { get; set; }
+    public ClientStatus? Status { get; set; }
 }
 
 public class ParentResponse

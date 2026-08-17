@@ -12,7 +12,7 @@ public class CreateChildRequest
     public required string Name { get; set; }
 
     [Required]
-    public DateOnly DateOfBirth { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
 
     [MaxLength(20)]
     public string? Gender { get; set; }
@@ -24,7 +24,7 @@ public class CreateChildRequest
 public class UpdateChildRequest : CreateChildRequest
 {
     [Required]
-    public ClientStatus Status { get; set; }
+    public ClientStatus? Status { get; set; }
 }
 
 public class ChildResponse

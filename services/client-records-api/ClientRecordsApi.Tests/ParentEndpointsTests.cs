@@ -142,4 +142,80 @@ public class ParentEndpointsTests : IClassFixture<LocalDbTestFixture>
         Assert.All(body!.Items, p => Assert.NotEqual("Tenant B Parent", p.Name));
         Assert.Contains(body.Items, p => p.Name == "Tenant A Parent");
     }
+
+    [Fact]
+    public async Task PutParent_UpdatesFieldsCorrectly()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/parents", tenantId, new CreateParentRequest
+        {
+            Name = "Original Name",
+            MobileNumber = "9876543210",
+            Email = "original@example.com"
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<ParentResponse>();
+
+        var updateResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/parents/{createdBody!.Id}", tenantId, new UpdateParentRequest
+        {
+            Name = "Updated Name",
+            MobileNumber = "9876543211",
+            Email = "updated@example.com",
+            City = "Mumbai",
+            Status = ClientStatus.Active
+        }));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updatedBody = await updateResponse.Content.ReadFromJsonAsync<ParentResponse>();
+        Assert.Equal("Updated Name", updatedBody!.Name);
+        Assert.Equal("Mumbai", updatedBody.City);
+    }
+
+    [Fact]
+    public async Task PutParent_UnderAnotherTenant_Returns404()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/parents", tenantA, new CreateParentRequest
+        {
+            Name = "Tenant A Parent",
+            MobileNumber = "9876543210",
+            Email = "tenanta-put@example.com"
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<ParentResponse>();
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/parents/{createdBody!.Id}", tenantB, new UpdateParentRequest
+        {
+            Name = "Hijacked Name",
+            MobileNumber = "9876543210",
+            Email = "hijacked@example.com",
+            Status = ClientStatus.Active
+        }));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PutParent_OmittingStatus_ReturnsValidationProblem_DoesNotSilentlyReactivate()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/parents", tenantId, new CreateParentRequest
+        {
+            Name = "Deactivate Then Omit",
+            MobileNumber = "9876543210",
+            Email = "omitstatus@example.com"
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<ParentResponse>();
+        await _client.SendAsync(WithTenant(HttpMethod.Delete, $"/parents/{createdBody!.Id}", tenantId));
+
+        var updateResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/parents/{createdBody.Id}", tenantId, new { Name = "No Status Field", MobileNumber = "9876543210", Email = "omitstatus@example.com" }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+
+        var fetched = await _client.SendAsync(WithTenant(HttpMethod.Get, $"/parents/{createdBody.Id}", tenantId));
+        var fetchedBody = await fetched.Content.ReadFromJsonAsync<ParentResponse>();
+        Assert.Equal(ClientStatus.Inactive, fetchedBody!.Status);
+    }
 }

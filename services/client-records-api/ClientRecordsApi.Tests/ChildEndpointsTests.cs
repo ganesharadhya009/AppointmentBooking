@@ -166,4 +166,60 @@ public class ChildEndpointsTests : IClassFixture<LocalDbTestFixture>
         Assert.All(body!.Items, c => Assert.NotEqual("Tenant B Child", c.Name));
         Assert.Contains(body.Items, c => c.Name == "Tenant A Child");
     }
+
+    [Fact]
+    public async Task PutChild_UpdatesFieldsCorrectly()
+    {
+        var tenantId = Guid.NewGuid();
+        var parentId = await CreateParentAsync(tenantId);
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/children", tenantId, new CreateChildRequest
+        {
+            ParentId = parentId,
+            Name = "Original Child",
+            DateOfBirth = new DateOnly(2019, 6, 15)
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<ChildResponse>();
+
+        var updateResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/children/{createdBody!.Id}", tenantId, new UpdateChildRequest
+        {
+            ParentId = parentId,
+            Name = "Updated Child",
+            DateOfBirth = new DateOnly(2019, 6, 15),
+            Status = ClientStatus.Active
+        }));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        var updatedBody = await updateResponse.Content.ReadFromJsonAsync<ChildResponse>();
+        Assert.Equal("Updated Child", updatedBody!.Name);
+    }
+
+    [Fact]
+    public async Task PutChild_UnderAnotherTenant_Returns404()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var parentIdA = await CreateParentAsync(tenantA);
+        // A parent that exists under tenantB so the request's own ParentId-exists
+        // check passes, isolating the assertion to the child-lookup tenant filter.
+        var parentIdB = await CreateParentAsync(tenantB);
+
+        var created = await _client.SendAsync(WithTenant(HttpMethod.Post, "/children", tenantA, new CreateChildRequest
+        {
+            ParentId = parentIdA,
+            Name = "Tenant A Child",
+            DateOfBirth = new DateOnly(2019, 6, 15)
+        }));
+        var createdBody = await created.Content.ReadFromJsonAsync<ChildResponse>();
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/children/{createdBody!.Id}", tenantB, new UpdateChildRequest
+        {
+            ParentId = parentIdB,
+            Name = "Hijacked Child",
+            DateOfBirth = new DateOnly(2019, 6, 15),
+            Status = ClientStatus.Active
+        }));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }
