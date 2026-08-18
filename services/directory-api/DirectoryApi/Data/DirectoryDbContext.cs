@@ -14,6 +14,7 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<Therapist> Therapists => Set<Therapist>();
     public DbSet<TherapistAssignment> TherapistAssignments => Set<TherapistAssignment>();
     public DbSet<TherapistSessionWindow> TherapistSessionWindows => Set<TherapistSessionWindow>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +87,14 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             w.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             w.HasIndex(x => x.TenantId);
             w.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
+        });
+
+        modelBuilder.Entity<Holiday>(h =>
+        {
+            h.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            h.HasIndex(x => x.TenantId);
+            h.HasIndex(x => new { x.TenantId, x.BranchId, x.Date }).IsUnique();
+            h.Property(x => x.Reason).HasMaxLength(500);
         });
     }
 }

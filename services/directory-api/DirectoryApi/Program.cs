@@ -33,6 +33,7 @@ app.MapTenantEndpoints();
 app.MapBranchEndpoints();
 app.MapTherapyTypeEndpoints();
 app.MapTherapistEndpoints();
+app.MapHolidayEndpoints();
 
 app.Run();
 
