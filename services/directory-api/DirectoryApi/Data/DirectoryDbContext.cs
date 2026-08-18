@@ -17,6 +17,7 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<ConsultantService> ConsultantServices => Set<ConsultantService>();
     public DbSet<ConsultantClinic> ConsultantClinics => Set<ConsultantClinic>();
+    public DbSet<ConsultantDoctor> ConsultantDoctors => Set<ConsultantDoctor>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -117,6 +118,16 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             c.Property(x => x.Country).HasMaxLength(100);
             c.Property(x => x.LeadContactName).HasMaxLength(200);
             c.Property(x => x.LeadContactPhone).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<ConsultantDoctor>(d =>
+        {
+            d.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            d.HasIndex(x => x.TenantId);
+            d.HasIndex(x => x.ConsultantServiceId);
+            d.HasIndex(x => x.ConsultantClinicId);
+            d.Property(x => x.Name).HasMaxLength(200);
+            d.Property(x => x.ConsultationFee).HasColumnType("decimal(10,2)");
         });
     }
 }
