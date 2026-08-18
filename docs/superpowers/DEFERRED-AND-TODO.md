@@ -24,6 +24,12 @@ Update this file whenever a final review (or any review) defers something. Each 
 
 ## 🟢 Minor, fix opportunistically or ignore
 
+- **`ai-service`'s `GET /suggestions` calls `SchedulingApi` sequentially per candidate therapist**, not concurrently (`asyncio.gather`) — fine for a stub at current scale, would add latency once branches have many therapists. (Flagged: AI Service Slot Suggestion Stub review, 2026-08-17.)
+- **`ai-service`'s HTTP clients construct a fresh `httpx.AsyncClient()` per call** rather than reusing a pooled client — minor inefficiency, not a correctness issue.
+- **No logging on `ai-service`'s swallowed downstream-failure paths** (`DirectoryApiClient`/`SchedulingApiClient` returning `[]` on any error) — fine for MVP, would hamper debugging once this moves past the stub stage; add structured logging before Phase 7 builds real AI features on top of this pattern.
+- **No test covers a mixed partial-failure scenario** for `GET /suggestions` (one candidate therapist's `SchedulingApi` call fails while another succeeds) — existing tests cover total failure (empty result) and total success, not the in-between case that most directly proves per-therapist exclusion.
+- **`ai-service` has no Alembic/migration tooling yet** — `SlotSuggestionLog` exists as a SQLAlchemy model with no path to a real Postgres table. Needs a migration setup before this service is ever pointed at a real Postgres instance.
+
 - All 6 GitHub Actions workflows trigger `push` on `branches: [main]`, but the repo's actual branch is `master` — push-time CI re-validation never fires, only `pull_request` validation works. One-line fix per workflow file whenever touched next.
 - `infra/bicep/main.bicep`'s Key Vault name would overflow the 24-char limit if `environmentName` is ever set to something longer than `dev`/`staging`/`prod`.
 - Leftover default Vite boilerplate in the Admin SPA (unused demo CSS/assets from scaffolding) — cosmetic, no functional impact.
@@ -38,4 +44,4 @@ Update this file whenever a final review (or any review) defers something. Each 
 - GUID primary keys use `Guid.NewGuid()` (random), meaning default clustered-index insert patterns will fragment under real write volume on Azure SQL. Consider `NEWSEQUENTIALID()` as a DB default, or non-clustered PKs, once real traffic volume is a concern — not before.
 
 ---
-*Last updated: end of Core Appointment Booking Engine (Scheduling API) sub-project (2026-08-17). Update this file at the end of every subsequent sub-project's final review.*
+*Last updated: end of AI Service Slot Suggestion Stub sub-project (2026-08-18). Update this file at the end of every subsequent sub-project's final review.*
