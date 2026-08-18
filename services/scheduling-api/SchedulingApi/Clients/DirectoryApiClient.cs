@@ -26,4 +26,25 @@ public class DirectoryApiClient(HttpClient httpClient) : IDirectoryApiClient
             ? await response.Content.ReadFromJsonAsync<TherapistInfo>(JsonOptions, cancellationToken)
             : null;
     }
+
+    public async Task<bool?> IsBranchClosedAsync(Guid branchId, DateOnly date, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/holidays/is-closed?branchId={branchId}&date={date:yyyy-MM-dd}");
+        request.Headers.Add("X-Tenant-Id", tenantId.ToString());
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+        var result = await response.Content.ReadFromJsonAsync<IsClosedResponse>(JsonOptions, cancellationToken);
+        return result?.IsClosed;
+    }
 }

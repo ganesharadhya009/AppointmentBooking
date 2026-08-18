@@ -22,6 +22,11 @@ public class BranchInfo
     public bool IsActive { get; set; }
 }
 
+public class IsClosedResponse
+{
+    public bool IsClosed { get; set; }
+}
+
 public class SessionWindowInfo
 {
     public SessionWindowName WindowName { get; set; }
@@ -48,4 +53,5 @@ public interface IDirectoryApiClient
 {
     Task<BranchInfo?> GetBranchAsync(Guid branchId, Guid tenantId, CancellationToken cancellationToken = default);
     Task<TherapistInfo?> GetTherapistAsync(Guid therapistId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<bool?> IsBranchClosedAsync(Guid branchId, DateOnly date, Guid tenantId, CancellationToken cancellationToken = default);
 }

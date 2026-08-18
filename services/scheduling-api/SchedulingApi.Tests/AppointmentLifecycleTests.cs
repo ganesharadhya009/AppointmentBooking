@@ -18,6 +18,7 @@ public class AppointmentLifecycleTests : IClassFixture<LocalDbTestFixture>
     {
         _fixture = fixture;
         _client = fixture.CreateClient();
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = null;
     }
 
     private HttpRequestMessage WithTenant(HttpMethod method, string url, Guid tenantId, string? idempotencyKey = null, object? body = null)
@@ -233,5 +234,21 @@ public class AppointmentLifecycleTests : IClassFixture<LocalDbTestFixture>
         Assert.Equal(2, body.PageSize);
         Assert.Equal(3, body.TotalCount);
         Assert.Equal(2, body.Items.Count);
+    }
+
+    [Fact]
+    public async Task PutAppointment_RescheduleOntoAClosedBranchDate_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var (appointmentId, _, _, _, _) = await BookAnAppointmentAsync(tenantId);
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = true;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/appointments/{appointmentId}", tenantId, body: new UpdateAppointmentRequest
+        {
+            WindowName = SchedulingApi.Entities.SessionWindowName.Afternoon,
+            AppointmentDate = new DateOnly(2026, 10, 2)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

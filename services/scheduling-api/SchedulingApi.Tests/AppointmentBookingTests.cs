@@ -17,6 +17,7 @@ public class AppointmentBookingTests : IClassFixture<LocalDbTestFixture>
     {
         _fixture = fixture;
         _client = fixture.CreateClient();
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = null;
     }
 
     private HttpRequestMessage WithTenant(HttpMethod method, string url, Guid tenantId, string? idempotencyKey = null, object? body = null)
@@ -282,5 +283,53 @@ public class AppointmentBookingTests : IClassFixture<LocalDbTestFixture>
         }));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostAppointment_OnAClosedBranchDate_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(branchId, therapistId, therapyTypeId, childId);
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = true;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), new CreateAppointmentRequest
+        {
+            BranchId = branchId,
+            TherapistId = therapistId,
+            TherapyTypeId = therapyTypeId,
+            ChildId = childId,
+            WindowName = SchedulingApi.Entities.SessionWindowName.Morning,
+            AppointmentDate = new DateOnly(2026, 10, 2)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostAppointment_WhenHolidayCheckFails_StillSucceeds_FailOpen()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(branchId, therapistId, therapyTypeId, childId);
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = null;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/appointments", tenantId, Guid.NewGuid().ToString(), new CreateAppointmentRequest
+        {
+            BranchId = branchId,
+            TherapistId = therapistId,
+            TherapyTypeId = therapyTypeId,
+            ChildId = childId,
+            WindowName = SchedulingApi.Entities.SessionWindowName.Morning,
+            AppointmentDate = new DateOnly(2026, 10, 2)
+        }));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 }

@@ -16,6 +16,7 @@ public class AvailabilityEndpointTests : IClassFixture<LocalDbTestFixture>
     {
         _fixture = fixture;
         _client = fixture.CreateClient();
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = null;
     }
 
     private HttpRequestMessage WithTenant(HttpMethod method, string url, Guid tenantId)
@@ -66,5 +67,37 @@ public class AvailabilityEndpointTests : IClassFixture<LocalDbTestFixture>
             $"/availability?branchId={Guid.NewGuid()}&therapistId={Guid.NewGuid()}&therapyTypeId={Guid.NewGuid()}&date=2026-09-01", tenantId));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAvailability_OnAClosedBranchDate_ReturnsEmptyWindows()
+    {
+        var tenantId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var therapistId = Guid.NewGuid();
+        var therapyTypeId = Guid.NewGuid();
+
+        _fixture.DirectoryApiClient.TherapistToReturn = new TherapistInfo
+        {
+            Id = therapistId,
+            Status = RemoteStatus.Active,
+            Assignments =
+            [
+                new TherapistAssignmentInfo
+                {
+                    BranchId = branchId,
+                    TherapyTypeId = therapyTypeId,
+                    SessionWindows = [new SessionWindowInfo { WindowName = SessionWindowName.Morning, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(12, 0), PricePerSession = 500 }]
+                }
+            ]
+        };
+        _fixture.DirectoryApiClient.IsBranchClosedToReturn = true;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get,
+            $"/availability?branchId={branchId}&therapistId={therapistId}&therapyTypeId={therapyTypeId}&date=2026-10-02", tenantId));
+        var body = await response.Content.ReadFromJsonAsync<AvailabilityResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(body!.AvailableWindows);
     }
 }

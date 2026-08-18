@@ -29,6 +29,12 @@ public static class AppointmentEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Therapist is not assigned to this branch/therapy type");
             }
 
+            var isClosed = await directoryClient.IsBranchClosedAsync(branchId, date, tenantContext.TenantId);
+            if (isClosed == true)
+            {
+                return Results.Ok(new AvailabilityResponse { AvailableWindows = [] });
+            }
+
             var existingAppointments = await db.Appointments
                 .Where(a => a.BranchId == branchId && a.TherapistId == therapistId && a.TherapyTypeId == therapyTypeId && a.AppointmentDate == date)
                 .ToListAsync();
@@ -94,6 +100,12 @@ public static class AppointmentEndpoints
             if (branch is null || !branch.IsActive)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["branchId"] = ["Branch not found or not active."] });
+            }
+
+            var isClosed = await directoryClient.IsBranchClosedAsync(request.BranchId, request.AppointmentDate!.Value, tenantContext.TenantId);
+            if (isClosed == true)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["appointmentDate"] = ["The branch is closed on this date."] });
             }
 
             var therapist = await directoryClient.GetTherapistAsync(request.TherapistId, tenantContext.TenantId);
@@ -193,6 +205,12 @@ public static class AppointmentEndpoints
             if (appointment.Status == AppointmentStatus.Completed)
             {
                 return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Appointment is completed", detail: "A completed appointment cannot be rescheduled.");
+            }
+
+            var isClosed = await directoryClient.IsBranchClosedAsync(appointment.BranchId, request.AppointmentDate!.Value, tenantContext.TenantId);
+            if (isClosed == true)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["appointmentDate"] = ["The branch is closed on this date."] });
             }
 
             var therapist = await directoryClient.GetTherapistAsync(appointment.TherapistId, tenantContext.TenantId);
