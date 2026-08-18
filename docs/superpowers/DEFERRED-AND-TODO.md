@@ -24,6 +24,8 @@ Update this file whenever a final review (or any review) defers something. Each 
 
 ## 🟢 Minor, fix opportunistically or ignore
 
+- **`POST /enquiries/{id}/convert` has a TOCTOU race on concurrent double-conversion.** Two simultaneous convert requests against the same enquiry could both pass the `Status != Converted` check before either commits, producing two duplicate `Parent`/`Child` pairs. Consistent with the rest of the codebase's status-transition endpoints (none use a concurrency token either), not a new regression — but worth a shared fix (optimistic concurrency token) across all of them in one pass eventually. (Flagged: Enquiry Management final review, 2026-08-18.)
+- **`Enquiry.Concerns`'s value-converter/comparer round-trip is under-tested** — the design spec called for empty-list/null round-trip tests and an in-place-mutation test (the exact scenario `ValueComparer` protects against); only a full-reassignment replacement test exists. The converter/comparer are correctly wired; the gap is test coverage, not implementation. (Flagged: Enquiry Management final review.)
 - **`ai-service`'s `GET /suggestions` calls `SchedulingApi` sequentially per candidate therapist**, not concurrently (`asyncio.gather`) — fine for a stub at current scale, would add latency once branches have many therapists. (Flagged: AI Service Slot Suggestion Stub review, 2026-08-17.)
 - **`ai-service`'s HTTP clients construct a fresh `httpx.AsyncClient()` per call** rather than reusing a pooled client — minor inefficiency, not a correctness issue.
 - **No logging on `ai-service`'s swallowed downstream-failure paths** (`DirectoryApiClient`/`SchedulingApiClient` returning `[]` on any error) — fine for MVP, would hamper debugging once this moves past the stub stage; add structured logging before Phase 7 builds real AI features on top of this pattern.
@@ -44,4 +46,4 @@ Update this file whenever a final review (or any review) defers something. Each 
 - GUID primary keys use `Guid.NewGuid()` (random), meaning default clustered-index insert patterns will fragment under real write volume on Azure SQL. Consider `NEWSEQUENTIALID()` as a DB default, or non-clustered PKs, once real traffic volume is a concern — not before.
 
 ---
-*Last updated: end of AI Service Slot Suggestion Stub sub-project (2026-08-18). Update this file at the end of every subsequent sub-project's final review.*
+*Last updated: end of Enquiry Management sub-project (2026-08-18). Update this file at the end of every subsequent sub-project's final review.*
