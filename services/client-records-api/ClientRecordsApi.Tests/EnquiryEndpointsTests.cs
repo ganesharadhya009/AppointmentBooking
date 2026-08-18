@@ -123,4 +123,73 @@ public class EnquiryEndpointsTests : IClassFixture<LocalDbTestFixture>
         Assert.Single(body!.Items);
         Assert.Equal("8888888888", body.Items[0].ParentMobileNumber);
     }
+
+    [Fact]
+    public async Task ConvertEnquiry_CreatesExactlyOneParentAndChild()
+    {
+        var tenantId = Guid.NewGuid();
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/enquiries", tenantId, ValidRequest()));
+        var created = await createResponse.Content.ReadFromJsonAsync<EnquiryResponse>();
+
+        var convertResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, $"/enquiries/{created!.Id}/convert", tenantId));
+        var convertBody = await convertResponse.Content.ReadFromJsonAsync<ConvertEnquiryResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, convertResponse.StatusCode);
+
+        var parentResponse = await _client.SendAsync(WithTenant(HttpMethod.Get, $"/parents/{convertBody!.ParentId}", tenantId));
+        var parentBody = await parentResponse.Content.ReadFromJsonAsync<ParentResponse>();
+        Assert.Equal(HttpStatusCode.OK, parentResponse.StatusCode);
+        Assert.Equal("Test Parent", parentBody!.Name);
+
+        var childResponse = await _client.SendAsync(WithTenant(HttpMethod.Get, $"/children/{convertBody.ChildId}", tenantId));
+        var childBody = await childResponse.Content.ReadFromJsonAsync<ChildResponse>();
+        Assert.Equal(HttpStatusCode.OK, childResponse.StatusCode);
+        Assert.Equal("Test Child", childBody!.Name);
+
+        var enquiryResponse = await _client.SendAsync(WithTenant(HttpMethod.Get, $"/enquiries/{created.Id}", tenantId));
+        var enquiryBody = await enquiryResponse.Content.ReadFromJsonAsync<EnquiryResponse>();
+        Assert.Equal(EnquiryStatus.Converted, enquiryBody!.Status);
+        Assert.Equal(convertBody.ParentId, enquiryBody.ConvertedParentId);
+        Assert.Equal(convertBody.ChildId, enquiryBody.ConvertedChildId);
+    }
+
+    [Fact]
+    public async Task ConvertEnquiry_CalledTwice_SecondCallReturns409()
+    {
+        var tenantId = Guid.NewGuid();
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/enquiries", tenantId, ValidRequest()));
+        var created = await createResponse.Content.ReadFromJsonAsync<EnquiryResponse>();
+        await _client.SendAsync(WithTenant(HttpMethod.Post, $"/enquiries/{created!.Id}/convert", tenantId));
+
+        var secondConvert = await _client.SendAsync(WithTenant(HttpMethod.Post, $"/enquiries/{created.Id}/convert", tenantId));
+
+        Assert.Equal(HttpStatusCode.Conflict, secondConvert.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConvertEnquiry_WithoutChildDateOfBirth_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var request = ValidRequest();
+        request.ChildDateOfBirth = null;
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/enquiries", tenantId, request));
+        var created = await createResponse.Content.ReadFromJsonAsync<EnquiryResponse>();
+
+        var convertResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, $"/enquiries/{created!.Id}/convert", tenantId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, convertResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PutEnquiry_OnAConvertedEnquiry_Returns409()
+    {
+        var tenantId = Guid.NewGuid();
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/enquiries", tenantId, ValidRequest()));
+        var created = await createResponse.Content.ReadFromJsonAsync<EnquiryResponse>();
+        await _client.SendAsync(WithTenant(HttpMethod.Post, $"/enquiries/{created!.Id}/convert", tenantId));
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/enquiries/{created.Id}", tenantId, ValidRequest()));
+
+        Assert.Equal(HttpStatusCode.Conflict, putResponse.StatusCode);
+    }
 }

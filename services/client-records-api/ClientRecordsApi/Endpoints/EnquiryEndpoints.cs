@@ -161,6 +161,80 @@ public static class EnquiryEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(ToResponse(enquiry));
         });
+
+        group.MapPost("/{id:guid}/convert", async (Guid id, ClientRecordsDbContext db, ITenantContext tenantContext) =>
+        {
+            var enquiry = await db.Enquiries.FirstOrDefaultAsync(e => e.Id == id);
+            if (enquiry is null)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Enquiry not found");
+            }
+
+            if (enquiry.Status == EnquiryStatus.Converted)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Enquiry already converted", detail: "This enquiry has already been converted to a client.");
+            }
+
+            if (string.IsNullOrWhiteSpace(enquiry.ParentEmail))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["parentEmail"] = ["Parent email is required before an enquiry can be converted."]
+                });
+            }
+
+            if (enquiry.ChildDateOfBirth is null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["childDateOfBirth"] = ["Child date of birth is required before an enquiry can be converted."]
+                });
+            }
+
+            var parent = new Parent
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                Name = enquiry.ParentName,
+                MobileNumber = enquiry.ParentMobileNumber,
+                Email = enquiry.ParentEmail!,
+                Address = enquiry.Address,
+                City = enquiry.City,
+                State = enquiry.State,
+                Country = enquiry.Country,
+                Status = ClientStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = "system"
+            };
+
+            var child = new Child
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantContext.TenantId,
+                ParentId = parent.Id,
+                Name = enquiry.ChildName,
+                DateOfBirth = enquiry.ChildDateOfBirth!.Value,
+                Gender = enquiry.ChildGender,
+                Status = ClientStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = "system"
+            };
+
+            enquiry.Status = EnquiryStatus.Converted;
+            enquiry.ConvertedParentId = parent.Id;
+            enquiry.ConvertedChildId = child.Id;
+
+            db.Parents.Add(parent);
+            db.Children.Add(child);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new ConvertEnquiryResponse
+            {
+                EnquiryId = enquiry.Id,
+                ParentId = parent.Id,
+                ChildId = child.Id
+            });
+        });
     }
 
     private static EnquiryResponse ToResponse(Enquiry enquiry) => new()

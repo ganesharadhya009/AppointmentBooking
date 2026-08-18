@@ -76,3 +76,10 @@ public class EnquiryResponse
     public Guid? ConvertedParentId { get; set; }
     public Guid? ConvertedChildId { get; set; }
 }
+
+public class ConvertEnquiryResponse
+{
+    public Guid EnquiryId { get; set; }
+    public Guid ParentId { get; set; }
+    public Guid ChildId { get; set; }
+}
