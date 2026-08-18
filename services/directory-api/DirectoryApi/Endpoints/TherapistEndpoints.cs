@@ -14,14 +14,32 @@ public static class TherapistEndpoints
     {
         var group = app.MapGroup("/therapists");
 
-        group.MapGet("", async (int? page, int? pageSize, DirectoryDbContext db) =>
+        group.MapGet("", async (int? page, int? pageSize, Guid? branchId, Guid? therapyTypeId, TherapistStatus? status, DirectoryDbContext db) =>
         {
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
 
             var query = db.Therapists
                 .Include(t => t.Assignments).ThenInclude(a => a.SessionWindows)
-                .OrderBy(t => t.Name);
+                .AsQueryable();
+
+            if (branchId is not null)
+            {
+                query = query.Where(t => t.Assignments.Any(a => a.BranchId == branchId));
+            }
+
+            if (therapyTypeId is not null)
+            {
+                query = query.Where(t => t.Assignments.Any(a => a.TherapyTypeId == therapyTypeId));
+            }
+
+            if (status is not null)
+            {
+                query = query.Where(t => t.Status == status);
+            }
+
+            query = query.OrderBy(t => t.Name);
+
             var totalCount = await query.CountAsync();
             var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
 

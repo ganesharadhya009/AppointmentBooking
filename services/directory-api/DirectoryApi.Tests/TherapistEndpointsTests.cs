@@ -260,4 +260,98 @@ public class TherapistEndpointsTests : IClassFixture<LocalDbTestFixture>
         Assert.All(body!.Items, t => Assert.NotEqual("Tenant B Therapist", t.Name));
         Assert.Contains(body.Items, t => t.Name == "Tenant A Therapist");
     }
+
+    [Fact]
+    public async Task GetTherapists_FilteredByBranchAndTherapyType_ReturnsOnlyMatchingTherapist()
+    {
+        var tenantId = Guid.NewGuid();
+        var (branchId, therapyTypeId) = await CreateBranchAndTherapyTypeAsync(tenantId);
+        var (otherBranchId, otherTherapyTypeId) = await CreateBranchAndTherapyTypeAsync(tenantId);
+
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapists", tenantId, new CreateTherapistRequest
+        {
+            Name = "Matching Therapist",
+            MobileNumber = "1111111111",
+            Email = "matching@example.com",
+            LicenseNumber = "LIC-MATCH",
+            Designation = "Therapist",
+            Assignments = [BuildAssignment(branchId, therapyTypeId)]
+        }));
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapists", tenantId, new CreateTherapistRequest
+        {
+            Name = "Non-Matching Therapist",
+            MobileNumber = "2222222222",
+            Email = "nonmatching@example.com",
+            LicenseNumber = "LIC-NOMATCH",
+            Designation = "Therapist",
+            Assignments = [BuildAssignment(otherBranchId, otherTherapyTypeId)]
+        }));
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get,
+            $"/therapists?branchId={branchId}&therapyTypeId={therapyTypeId}", tenantId));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<TherapistResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Single(body!.Items);
+        Assert.Equal("Matching Therapist", body.Items[0].Name);
+    }
+
+    [Fact]
+    public async Task GetTherapists_FilteredByStatus_ExcludesInactiveTherapists()
+    {
+        var tenantId = Guid.NewGuid();
+        var (branchId, therapyTypeId) = await CreateBranchAndTherapyTypeAsync(tenantId);
+
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapists", tenantId, new CreateTherapistRequest
+        {
+            Name = "To Be Deactivated",
+            MobileNumber = "3333333333",
+            Email = "deactivated@example.com",
+            LicenseNumber = "LIC-DEACT",
+            Designation = "Therapist",
+            Assignments = [BuildAssignment(branchId, therapyTypeId)]
+        }));
+        var created = await createResponse.Content.ReadFromJsonAsync<TherapistResponse>();
+
+        await _client.SendAsync(WithTenant(HttpMethod.Put, $"/therapists/{created!.Id}", tenantId, new UpdateTherapistRequest
+        {
+            Name = created.Name,
+            MobileNumber = created.MobileNumber,
+            Email = created.Email,
+            LicenseNumber = created.LicenseNumber,
+            Designation = created.Designation,
+            Status = TherapistStatus.Inactive,
+            Assignments = [BuildAssignment(branchId, therapyTypeId)]
+        }));
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get,
+            $"/therapists?branchId={branchId}&therapyTypeId={therapyTypeId}&status=Active", tenantId));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<TherapistResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(body!.Items);
+    }
+
+    [Fact]
+    public async Task GetTherapists_WithNoFilters_StillReturnsUnfilteredPagedResults()
+    {
+        var tenantId = Guid.NewGuid();
+        var (branchId, therapyTypeId) = await CreateBranchAndTherapyTypeAsync(tenantId);
+
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/therapists", tenantId, new CreateTherapistRequest
+        {
+            Name = "Unfiltered Therapist",
+            MobileNumber = "4444444444",
+            Email = "unfiltered@example.com",
+            LicenseNumber = "LIC-UNFILT",
+            Designation = "Therapist",
+            Assignments = [BuildAssignment(branchId, therapyTypeId)]
+        }));
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, "/therapists", tenantId));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<TherapistResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(body!.Items, t => t.Name == "Unfiltered Therapist");
+    }
 }
