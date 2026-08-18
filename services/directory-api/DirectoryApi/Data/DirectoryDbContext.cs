@@ -15,6 +15,8 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<TherapistAssignment> TherapistAssignments => Set<TherapistAssignment>();
     public DbSet<TherapistSessionWindow> TherapistSessionWindows => Set<TherapistSessionWindow>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
+    public DbSet<ConsultantService> ConsultantServices => Set<ConsultantService>();
+    public DbSet<ConsultantClinic> ConsultantClinics => Set<ConsultantClinic>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +97,26 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             h.HasIndex(x => x.TenantId);
             h.HasIndex(x => new { x.TenantId, x.BranchId, x.Date }).IsUnique();
             h.Property(x => x.Reason).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<ConsultantService>(s =>
+        {
+            s.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            s.HasIndex(x => x.TenantId);
+            s.Property(x => x.Name).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<ConsultantClinic>(c =>
+        {
+            c.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            c.HasIndex(x => x.TenantId);
+            c.Property(x => x.Name).HasMaxLength(200);
+            c.Property(x => x.Address).HasMaxLength(500);
+            c.Property(x => x.City).HasMaxLength(100);
+            c.Property(x => x.State).HasMaxLength(100);
+            c.Property(x => x.Country).HasMaxLength(100);
+            c.Property(x => x.LeadContactName).HasMaxLength(200);
+            c.Property(x => x.LeadContactPhone).HasMaxLength(20);
         });
     }
 }

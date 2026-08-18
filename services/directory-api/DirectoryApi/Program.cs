@@ -34,6 +34,8 @@ app.MapBranchEndpoints();
 app.MapTherapyTypeEndpoints();
 app.MapTherapistEndpoints();
 app.MapHolidayEndpoints();
+app.MapConsultantServiceEndpoints();
+app.MapConsultantClinicEndpoints();
 
 app.Run();
 
