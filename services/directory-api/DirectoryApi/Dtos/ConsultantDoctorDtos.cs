@@ -9,10 +9,10 @@ public class CreateConsultantDoctorRequest
     public required string Name { get; set; }
 
     [Required]
-    public Guid ConsultantServiceId { get; set; }
+    public Guid? ConsultantServiceId { get; set; }
 
     [Required]
-    public Guid ConsultantClinicId { get; set; }
+    public Guid? ConsultantClinicId { get; set; }
 
     [Required]
     public decimal? ConsultationFee { get; set; }

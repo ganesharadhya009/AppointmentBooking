@@ -90,8 +90,8 @@ public static class ConsultantDoctorEndpoints
                 Id = Guid.NewGuid(),
                 TenantId = tenantContext.TenantId,
                 Name = request.Name,
-                ConsultantServiceId = request.ConsultantServiceId,
-                ConsultantClinicId = request.ConsultantClinicId,
+                ConsultantServiceId = request.ConsultantServiceId!.Value,
+                ConsultantClinicId = request.ConsultantClinicId!.Value,
                 ConsultationFee = request.ConsultationFee!.Value,
                 Status = ConsultantStatus.Active
             };
@@ -135,8 +135,8 @@ public static class ConsultantDoctorEndpoints
             }
 
             doctor.Name = request.Name;
-            doctor.ConsultantServiceId = request.ConsultantServiceId;
-            doctor.ConsultantClinicId = request.ConsultantClinicId;
+            doctor.ConsultantServiceId = request.ConsultantServiceId!.Value;
+            doctor.ConsultantClinicId = request.ConsultantClinicId!.Value;
             doctor.ConsultationFee = request.ConsultationFee!.Value;
             doctor.Status = request.Status!.Value;
 
