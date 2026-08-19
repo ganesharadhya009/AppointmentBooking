@@ -47,4 +47,14 @@ public class DirectoryApiClient(HttpClient httpClient) : IDirectoryApiClient
         var result = await response.Content.ReadFromJsonAsync<IsClosedResponse>(JsonOptions, cancellationToken);
         return result?.IsClosed;
     }
+
+    public async Task<ConsultantDoctorInfo?> GetConsultantDoctorAsync(Guid consultantDoctorId, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/consultant-doctors/{consultantDoctorId}");
+        request.Headers.Add("X-Tenant-Id", tenantId.ToString());
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<ConsultantDoctorInfo>(JsonOptions, cancellationToken)
+            : null;
+    }
 }

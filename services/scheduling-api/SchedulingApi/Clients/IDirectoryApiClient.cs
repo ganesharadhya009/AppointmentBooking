@@ -27,6 +27,21 @@ public class IsClosedResponse
     public bool IsClosed { get; set; }
 }
 
+public enum RemoteConsultantStatus
+{
+    Active,
+    Inactive
+}
+
+public class ConsultantDoctorInfo
+{
+    public Guid Id { get; set; }
+    public Guid ConsultantServiceId { get; set; }
+    public Guid ConsultantClinicId { get; set; }
+    public decimal ConsultationFee { get; set; }
+    public RemoteConsultantStatus Status { get; set; }
+}
+
 public class SessionWindowInfo
 {
     public SessionWindowName WindowName { get; set; }
@@ -54,4 +69,5 @@ public interface IDirectoryApiClient
     Task<BranchInfo?> GetBranchAsync(Guid branchId, Guid tenantId, CancellationToken cancellationToken = default);
     Task<TherapistInfo?> GetTherapistAsync(Guid therapistId, Guid tenantId, CancellationToken cancellationToken = default);
     Task<bool?> IsBranchClosedAsync(Guid branchId, DateOnly date, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<ConsultantDoctorInfo?> GetConsultantDoctorAsync(Guid consultantDoctorId, Guid tenantId, CancellationToken cancellationToken = default);
 }
