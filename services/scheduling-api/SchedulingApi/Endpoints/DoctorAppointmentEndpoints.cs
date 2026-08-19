@@ -123,6 +123,75 @@ public static class DoctorAppointmentEndpoints
 
             return Results.Created($"/doctor-appointments/{appointment.Id}", ToResponse(appointment));
         });
+
+        group.MapPut("/{id:guid}", async (Guid id, UpdateDoctorAppointmentRequest request, SchedulingDbContext db, IDirectoryApiClient directoryClient, ITenantContext tenantContext) =>
+        {
+            var validationErrors = DataAnnotationsValidator.Validate(request);
+            if (validationErrors is not null)
+            {
+                return Results.ValidationProblem(validationErrors);
+            }
+
+            var appointment = await db.DoctorAppointments.FirstOrDefaultAsync(a => a.Id == id);
+            if (appointment is null)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Doctor appointment not found");
+            }
+
+            if (appointment.Status == AppointmentStatus.Cancelled)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Appointment is cancelled", detail: "A cancelled appointment cannot be rescheduled.");
+            }
+
+            if (appointment.Status == AppointmentStatus.Completed)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Appointment is completed", detail: "A completed appointment cannot be rescheduled.");
+            }
+
+            var doctor = await directoryClient.GetConsultantDoctorAsync(appointment.ConsultantDoctorId, tenantContext.TenantId);
+            if (doctor is null || doctor.Status != RemoteConsultantStatus.Active)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["consultantDoctorId"] = ["Consultant doctor not found or not active."] });
+            }
+
+            var conflict = await db.DoctorAppointments.AnyAsync(a =>
+                a.Id != id &&
+                a.ConsultantDoctorId == appointment.ConsultantDoctorId &&
+                a.AppointmentDate == request.AppointmentDate!.Value &&
+                a.AppointmentTime == request.AppointmentTime!.Value &&
+                a.Status != AppointmentStatus.Cancelled);
+            if (conflict)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This doctor already has an appointment at this date and time.");
+            }
+
+            appointment.AppointmentDate = request.AppointmentDate!.Value;
+            appointment.AppointmentTime = request.AppointmentTime!.Value;
+            appointment.ConsultationFee = doctor.ConsultationFee;
+
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Slot already booked", detail: "This doctor already has an appointment at this date and time.");
+            }
+            return Results.Ok(ToResponse(appointment));
+        });
+
+        group.MapDelete("/{id:guid}", async (Guid id, SchedulingDbContext db) =>
+        {
+            var appointment = await db.DoctorAppointments.FirstOrDefaultAsync(a => a.Id == id);
+            if (appointment is null)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Doctor appointment not found");
+            }
+
+            appointment.Status = AppointmentStatus.Cancelled;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
     }
 
     private static bool IsUniqueViolation(Microsoft.EntityFrameworkCore.DbUpdateException ex) =>

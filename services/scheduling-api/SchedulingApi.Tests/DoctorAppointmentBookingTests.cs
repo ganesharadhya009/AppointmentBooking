@@ -215,4 +215,81 @@ public class DoctorAppointmentBookingTests : IClassFixture<LocalDbTestFixture>
         Assert.Equal(1, body!.TotalCount);
         Assert.Single(body.Items);
     }
+
+    [Fact]
+    public async Task PutDoctorAppointment_ReschedulesToADifferentTime()
+    {
+        var tenantId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(doctorId, childId);
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+        var created = await createResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/doctor-appointments/{created!.Id}", tenantId, body: new UpdateDoctorAppointmentRequest
+        {
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(14, 0)
+        }));
+        var putBody = await putResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
+        Assert.Equal(new TimeOnly(14, 0), putBody!.AppointmentTime);
+    }
+
+    [Fact]
+    public async Task PutDoctorAppointment_OnCancelledAppointment_Returns409()
+    {
+        var tenantId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(doctorId, childId);
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+        var created = await createResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+        await _client.SendAsync(WithTenant(HttpMethod.Delete, $"/doctor-appointments/{created!.Id}", tenantId));
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/doctor-appointments/{created.Id}", tenantId, body: new UpdateDoctorAppointmentRequest
+        {
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(15, 0)
+        }));
+
+        Assert.Equal(HttpStatusCode.Conflict, putResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteDoctorAppointment_CancelsIt_SlotBecomesBookableAgain()
+    {
+        var tenantId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(doctorId, childId);
+        var request = new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        };
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), request));
+        var created = await createResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+
+        var deleteResponse = await _client.SendAsync(WithTenant(HttpMethod.Delete, $"/doctor-appointments/{created!.Id}", tenantId));
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var rebookResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), request));
+        Assert.Equal(HttpStatusCode.Created, rebookResponse.StatusCode);
+    }
 }
