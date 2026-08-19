@@ -39,6 +39,7 @@ app.UseMiddleware<TenantIdMiddleware>();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "SchedulingApi" }));
 app.MapAppointmentEndpoints();
 app.MapDoctorAppointmentEndpoints();
+app.MapRefundRequestEndpoints();
 
 app.Run();
 

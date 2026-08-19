@@ -9,6 +9,7 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
 {
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<DoctorAppointment> DoctorAppointments => Set<DoctorAppointment>();
+    public DbSet<RefundRequest> RefundRequests => Set<RefundRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +34,14 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
             d.Property(x => x.ConsultationFee).HasColumnType("decimal(10,2)");
             d.Property(x => x.IdempotencyKey).HasMaxLength(200);
             d.Property(x => x.BookedBy).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<RefundRequest>(r =>
+        {
+            r.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            r.HasIndex(x => x.TenantId);
+            r.Property(x => x.Amount).HasColumnType("decimal(10,2)");
+            r.Property(x => x.ApprovedBy).HasMaxLength(200);
         });
     }
 }
