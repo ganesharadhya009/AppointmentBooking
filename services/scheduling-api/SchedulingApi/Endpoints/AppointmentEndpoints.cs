@@ -35,6 +35,12 @@ public static class AppointmentEndpoints
                 return Results.Ok(new AvailabilityResponse { AvailableWindows = [] });
             }
 
+            var isOnLeave = await directoryClient.IsTherapistOnLeaveAsync(therapistId, date, tenantContext.TenantId);
+            if (isOnLeave == true)
+            {
+                return Results.Ok(new AvailabilityResponse { AvailableWindows = [] });
+            }
+
             var existingAppointments = await db.Appointments
                 .Where(a => a.BranchId == branchId && a.TherapistId == therapistId && a.TherapyTypeId == therapyTypeId && a.AppointmentDate == date)
                 .ToListAsync();
@@ -106,6 +112,12 @@ public static class AppointmentEndpoints
             if (isClosed == true)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["appointmentDate"] = ["The branch is closed on this date."] });
+            }
+
+            var isOnLeave = await directoryClient.IsTherapistOnLeaveAsync(request.TherapistId, request.AppointmentDate!.Value, tenantContext.TenantId);
+            if (isOnLeave == true)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["appointmentDate"] = ["The therapist is on approved leave on this date."] });
             }
 
             var therapist = await directoryClient.GetTherapistAsync(request.TherapistId, tenantContext.TenantId);
@@ -211,6 +223,12 @@ public static class AppointmentEndpoints
             if (isClosed == true)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["appointmentDate"] = ["The branch is closed on this date."] });
+            }
+
+            var isOnLeave = await directoryClient.IsTherapistOnLeaveAsync(appointment.TherapistId, request.AppointmentDate!.Value, tenantContext.TenantId);
+            if (isOnLeave == true)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["appointmentDate"] = ["The therapist is on approved leave on this date."] });
             }
 
             var therapist = await directoryClient.GetTherapistAsync(appointment.TherapistId, tenantContext.TenantId);

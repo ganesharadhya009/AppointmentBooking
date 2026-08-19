@@ -48,6 +48,27 @@ public class DirectoryApiClient(HttpClient httpClient) : IDirectoryApiClient
         return result?.IsClosed;
     }
 
+    public async Task<bool?> IsTherapistOnLeaveAsync(Guid therapistId, DateOnly date, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/leave-requests/is-on-leave?therapistId={therapistId}&date={date:yyyy-MM-dd}");
+        request.Headers.Add("X-Tenant-Id", tenantId.ToString());
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+        var result = await response.Content.ReadFromJsonAsync<IsOnLeaveResponse>(JsonOptions, cancellationToken);
+        return result?.IsOnLeave;
+    }
+
     public async Task<ConsultantDoctorInfo?> GetConsultantDoctorAsync(Guid consultantDoctorId, Guid tenantId, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/consultant-doctors/{consultantDoctorId}");
