@@ -63,6 +63,15 @@ public static class RefundRequestEndpoints
                 }
             }
 
+            var hasActiveRefundRequest = await db.RefundRequests.AnyAsync(r =>
+                r.AppointmentType == request.AppointmentType &&
+                r.AppointmentId == request.AppointmentId &&
+                r.Status != RefundRequestStatus.Rejected);
+            if (hasActiveRefundRequest)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Refund request already exists", detail: "This appointment already has a pending or approved refund request.");
+            }
+
             var refundRequest = new RefundRequest
             {
                 Id = Guid.NewGuid(),

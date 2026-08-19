@@ -12,6 +12,7 @@ public class CreateRefundRequestRequest
     public Guid AppointmentId { get; set; }
 
     [Required]
+    [Range(typeof(decimal), "0.01", "99999999.99")]
     public decimal? Amount { get; set; }
 }
 
