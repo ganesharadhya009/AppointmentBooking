@@ -8,6 +8,7 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
     : DbContext(options)
 {
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<DoctorAppointment> DoctorAppointments => Set<DoctorAppointment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +22,17 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
             a.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
             a.Property(x => x.IdempotencyKey).HasMaxLength(200);
             a.Property(x => x.BookedBy).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<DoctorAppointment>(d =>
+        {
+            d.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            d.HasIndex(x => x.TenantId);
+            d.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
+            d.HasIndex(x => new { x.TenantId, x.ConsultantDoctorId, x.AppointmentDate, x.AppointmentTime }).IsUnique().HasFilter("[Status] <> 2");
+            d.Property(x => x.ConsultationFee).HasColumnType("decimal(10,2)");
+            d.Property(x => x.IdempotencyKey).HasMaxLength(200);
+            d.Property(x => x.BookedBy).HasMaxLength(200);
         });
     }
 }
