@@ -37,6 +37,7 @@ app.MapHolidayEndpoints();
 app.MapConsultantServiceEndpoints();
 app.MapConsultantClinicEndpoints();
 app.MapConsultantDoctorEndpoints();
+app.MapLeaveRequestEndpoints();
 
 app.Run();
 

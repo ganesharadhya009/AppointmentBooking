@@ -18,6 +18,7 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<ConsultantService> ConsultantServices => Set<ConsultantService>();
     public DbSet<ConsultantClinic> ConsultantClinics => Set<ConsultantClinic>();
     public DbSet<ConsultantDoctor> ConsultantDoctors => Set<ConsultantDoctor>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -128,6 +129,13 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             d.HasIndex(x => x.ConsultantClinicId);
             d.Property(x => x.Name).HasMaxLength(200);
             d.Property(x => x.ConsultationFee).HasColumnType("decimal(10,2)");
+        });
+
+        modelBuilder.Entity<LeaveRequest>(l =>
+        {
+            l.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            l.HasIndex(x => x.TenantId);
+            l.HasIndex(x => x.TherapistId);
         });
     }
 }
