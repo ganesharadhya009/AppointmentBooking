@@ -139,12 +139,25 @@ public static class RefundRequestEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Unable to resolve parent", detail: "Could not resolve the parent for this appointment's child record.");
             }
 
+            // Derived from the refund's own identity rather than forwarded from the client's
+            // Idempotency-Key header: the client key is still required and validated above (that's
+            // still the correct contract for this endpoint's own idempotency), but it must not be
+            // the key BillingApi sees. A raw pass-through would let (a) a client-side key reused
+            // across two different refunds replay an unrelated BillingApi transaction as if it were
+            // this refund's credit (split-brain: approved here with zero real credit), and (b) two
+            // concurrent approve calls for the SAME refund with two different client keys each get a
+            // real, distinct credit (double-credit). Keying downstream on the refund's own Id makes
+            // "at most one real credit per refund approval" structural — every approve attempt for
+            // this refund, concurrent or retried, hits the identical downstream key, so BillingApi's
+            // idempotency-replay-with-match-checking collapses them into exactly one credit.
+            var downstreamIdempotencyKey = $"refund-approve:{refundRequest.Id}";
+
             var credited = await billingClient.CreditWalletAsync(
                 child.ParentId,
                 refundRequest.Amount,
                 $"Refund approved for appointment {refundRequest.AppointmentId}",
                 refundRequest.AppointmentId,
-                idempotencyKey,
+                downstreamIdempotencyKey,
                 tenantContext.TenantId);
 
             if (!credited)
@@ -152,9 +165,22 @@ public static class RefundRequestEndpoints
                 return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Wallet credit failed", detail: "Could not credit the parent's wallet. The refund request remains pending — retry the approval.");
             }
 
+            // Conditional update guarded on Status == Pending (rather than an unconditional
+            // field-set-then-save) closes the harmless-but-sloppy race where two concurrent
+            // approvals both read Status == Pending before either writes: only one UPDATE actually
+            // matches a Pending row, so only one wins. ExecuteUpdateAsync bypasses change tracking,
+            // so the in-memory refundRequest is updated separately below for the response body.
+            var rowsUpdated = await db.RefundRequests
+                .Where(r => r.Id == refundRequest.Id && r.Status == RefundRequestStatus.Pending)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.Status, RefundRequestStatus.Approved)
+                    .SetProperty(r => r.ApprovedBy, "system"));
+            if (rowsUpdated == 0)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Refund request already actioned", detail: "Only a pending refund request can be approved.");
+            }
             refundRequest.Status = RefundRequestStatus.Approved;
             refundRequest.ApprovedBy = "system";
-            await db.SaveChangesAsync();
             return Results.Ok(ToResponse(refundRequest));
         });
 

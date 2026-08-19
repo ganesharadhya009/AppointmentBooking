@@ -16,7 +16,7 @@ public class BillingApiClient(HttpClient httpClient) : IBillingApiClient
             var response = await httpClient.SendAsync(request, cancellationToken);
             return response.IsSuccessStatusCode;
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return false;
         }

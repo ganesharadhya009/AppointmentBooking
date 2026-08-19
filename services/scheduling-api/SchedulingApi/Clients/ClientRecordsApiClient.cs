@@ -11,9 +11,17 @@ public class ClientRecordsApiClient(HttpClient httpClient) : IClientRecordsApiCl
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/children/{childId}");
         request.Headers.Add("X-Tenant-Id", tenantId.ToString());
-        var response = await httpClient.SendAsync(request, cancellationToken);
-        return response.IsSuccessStatusCode
-            ? await response.Content.ReadFromJsonAsync<ChildInfo>(JsonOptions, cancellationToken)
-            : null;
+
+        try
+        {
+            var response = await httpClient.SendAsync(request, cancellationToken);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<ChildInfo>(JsonOptions, cancellationToken)
+                : null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return null;
+        }
     }
 }
