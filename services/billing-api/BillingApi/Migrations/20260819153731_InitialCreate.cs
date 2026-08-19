@@ -43,6 +43,12 @@ namespace BillingApi.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_WalletTransactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WalletTransactions_Wallets_WalletId",
+                        column: x => x.WalletId,
+                        principalTable: "Wallets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
@@ -77,10 +83,10 @@ namespace BillingApi.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Wallets");
+                name: "WalletTransactions");
 
             migrationBuilder.DropTable(
-                name: "WalletTransactions");
+                name: "Wallets");
         }
     }
 }

@@ -6,6 +6,7 @@ namespace BillingApi.Dtos;
 public class CreditWalletRequest
 {
     [Required]
+    [Range(typeof(decimal), "0.01", "99999999.99")]
     public decimal? Amount { get; set; }
 
     [Required, MaxLength(500)]
@@ -17,6 +18,7 @@ public class CreditWalletRequest
 public class DebitWalletRequest
 {
     [Required]
+    [Range(typeof(decimal), "0.01", "99999999.99")]
     public decimal? Amount { get; set; }
 
     [Required, MaxLength(500)]

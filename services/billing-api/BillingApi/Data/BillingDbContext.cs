@@ -29,6 +29,10 @@ public class BillingDbContext(DbContextOptions<BillingDbContext> options, ITenan
             t.Property(x => x.Amount).HasColumnType("decimal(10,2)");
             t.Property(x => x.Reason).HasMaxLength(500);
             t.Property(x => x.IdempotencyKey).HasMaxLength(200);
+            // No navigation property needed on either side — nothing currently .Include()s this
+            // relationship — but the FK itself is required so an orphaned/misattributed ledger
+            // row (a WalletId with no matching Wallet) is impossible at the DB level.
+            t.HasOne<Wallet>().WithMany().HasForeignKey(x => x.WalletId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

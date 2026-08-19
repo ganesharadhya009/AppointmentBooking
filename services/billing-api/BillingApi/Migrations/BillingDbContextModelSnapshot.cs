@@ -95,6 +95,15 @@ namespace BillingApi.Migrations
 
                     b.ToTable("WalletTransactions");
                 });
+
+            modelBuilder.Entity("BillingApi.Entities.WalletTransaction", b =>
+                {
+                    b.HasOne("BillingApi.Entities.Wallet", null)
+                        .WithMany()
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
 #pragma warning restore 612, 618
         }
     }

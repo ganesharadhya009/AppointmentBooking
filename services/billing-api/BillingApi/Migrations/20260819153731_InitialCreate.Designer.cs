@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BillingApi.Migrations
 {
     [DbContext(typeof(BillingDbContext))]
-    [Migration("20260819152455_InitialCreate")]
+    [Migration("20260819153731_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -97,6 +97,15 @@ namespace BillingApi.Migrations
                         .IsUnique();
 
                     b.ToTable("WalletTransactions");
+                });
+
+            modelBuilder.Entity("BillingApi.Entities.WalletTransaction", b =>
+                {
+                    b.HasOne("BillingApi.Entities.Wallet", null)
+                        .WithMany()
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
