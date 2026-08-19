@@ -292,4 +292,135 @@ public class DoctorAppointmentBookingTests : IClassFixture<LocalDbTestFixture>
         var rebookResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), request));
         Assert.Equal(HttpStatusCode.Created, rebookResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task PutDoctorAppointment_WithInactiveDoctor_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(doctorId, childId);
+        var createResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+        var created = await createResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+        _fixture.DirectoryApiClient.ConsultantDoctorToReturn!.Status = RemoteConsultantStatus.Inactive;
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/doctor-appointments/{created!.Id}", tenantId, body: new UpdateDoctorAppointmentRequest
+        {
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(14, 0)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, putResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PutDoctorAppointment_OntoAnAlreadyBookedSlot_Returns409()
+    {
+        var tenantId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(doctorId, childId);
+        var firstCreateResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+        var firstCreated = await firstCreateResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+        var secondCreateResponse = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(14, 0)
+        }));
+        var secondCreated = await secondCreateResponse.Content.ReadFromJsonAsync<DoctorAppointmentResponse>();
+
+        var putResponse = await _client.SendAsync(WithTenant(HttpMethod.Put, $"/doctor-appointments/{secondCreated!.Id}", tenantId, body: new UpdateDoctorAppointmentRequest
+        {
+            AppointmentDate = firstCreated!.AppointmentDate,
+            AppointmentTime = firstCreated.AppointmentTime
+        }));
+
+        Assert.Equal(HttpStatusCode.Conflict, putResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListDoctorAppointments_NeverReturnsAnotherTenantsAppointments()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var doctorIdA = Guid.NewGuid();
+        var childIdA = Guid.NewGuid();
+        SetUpValidReferences(doctorIdA, childIdA);
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantA, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorIdA,
+            ChildId = childIdA,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+
+        var doctorIdB = Guid.NewGuid();
+        var childIdB = Guid.NewGuid();
+        SetUpValidReferences(doctorIdB, childIdB);
+        await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantB, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorIdB,
+            ChildId = childIdB,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Get, "/doctor-appointments", tenantA));
+        var body = await response.Content.ReadFromJsonAsync<PagedResult<DoctorAppointmentResponse>>();
+
+        Assert.Equal(1, body!.TotalCount);
+        Assert.Single(body.Items);
+    }
+
+    [Fact]
+    public async Task PostDoctorAppointment_WithNonexistentDoctor_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        _fixture.DirectoryApiClient.ConsultantDoctorToReturn = null;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = Guid.NewGuid(),
+            ChildId = Guid.NewGuid(),
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostDoctorAppointment_WithNonexistentChild_ReturnsValidationProblem()
+    {
+        var tenantId = Guid.NewGuid();
+        var doctorId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        SetUpValidReferences(doctorId, childId);
+        _fixture.ClientRecordsApiClient.ChildToReturn = null;
+
+        var response = await _client.SendAsync(WithTenant(HttpMethod.Post, "/doctor-appointments", tenantId, Guid.NewGuid().ToString(), new CreateDoctorAppointmentRequest
+        {
+            ConsultantDoctorId = doctorId,
+            ChildId = childId,
+            AppointmentDate = new DateOnly(2026, 9, 1),
+            AppointmentTime = new TimeOnly(10, 0)
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
