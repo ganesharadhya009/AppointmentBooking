@@ -19,6 +19,8 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<ConsultantClinic> ConsultantClinics => Set<ConsultantClinic>();
     public DbSet<ConsultantDoctor> ConsultantDoctors => Set<ConsultantDoctor>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -136,6 +138,25 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             l.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             l.HasIndex(x => x.TenantId);
             l.HasIndex(x => x.TherapistId);
+        });
+
+        modelBuilder.Entity<SupportTicket>(s =>
+        {
+            s.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            s.HasIndex(x => x.TenantId);
+            s.Property(x => x.Category).HasMaxLength(200);
+            s.Property(x => x.Title).HasMaxLength(200);
+            s.HasMany(x => x.Messages)
+                .WithOne()
+                .HasForeignKey(m => m.SupportTicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SupportTicketMessage>(m =>
+        {
+            m.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            m.HasIndex(x => x.TenantId);
+            m.Property(x => x.SenderType).HasMaxLength(50);
         });
     }
 }

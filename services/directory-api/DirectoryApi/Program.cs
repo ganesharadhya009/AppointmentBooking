@@ -38,6 +38,7 @@ app.MapConsultantServiceEndpoints();
 app.MapConsultantClinicEndpoints();
 app.MapConsultantDoctorEndpoints();
 app.MapLeaveRequestEndpoints();
+app.MapSupportTicketEndpoints();
 
 app.Run();
 
