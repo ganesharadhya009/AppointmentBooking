@@ -1,3 +1,4 @@
+using SchedulingApi.Clients;
 using SchedulingApi.Common;
 using SchedulingApi.Data;
 using SchedulingApi.Dtos;
@@ -89,7 +90,7 @@ public static class RefundRequestEndpoints
             return Results.Created($"/refund-requests/{refundRequest.Id}", ToResponse(refundRequest));
         });
 
-        group.MapPost("/{id:guid}/approve", async (Guid id, SchedulingDbContext db) =>
+        group.MapPost("/{id:guid}/approve", async (Guid id, HttpRequest httpRequest, SchedulingDbContext db, IClientRecordsApiClient clientRecordsClient, IBillingApiClient billingClient, ITenantContext tenantContext) =>
         {
             var refundRequest = await db.RefundRequests.FirstOrDefaultAsync(r => r.Id == id);
             if (refundRequest is null)
@@ -100,6 +101,55 @@ public static class RefundRequestEndpoints
             if (refundRequest.Status != RefundRequestStatus.Pending)
             {
                 return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Refund request already actioned", detail: "Only a pending refund request can be approved.");
+            }
+
+            if (!httpRequest.Headers.TryGetValue("Idempotency-Key", out var idempotencyKeyValues) || string.IsNullOrWhiteSpace(idempotencyKeyValues.ToString()))
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Missing Idempotency-Key header", detail: "POST /refund-requests/{id}/approve requires an Idempotency-Key header.");
+            }
+            var idempotencyKey = idempotencyKeyValues.ToString()!;
+            if (idempotencyKey.Length > 200)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Idempotency-Key header is too long", detail: "Idempotency-Key must be 200 characters or fewer.");
+            }
+
+            Guid childId;
+            if (refundRequest.AppointmentType == RefundRequestAppointmentType.TherapistAppointment)
+            {
+                var appointment = await db.Appointments.FirstOrDefaultAsync(a => a.Id == refundRequest.AppointmentId);
+                if (appointment is null)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Unable to resolve appointment", detail: "The appointment behind this refund request could no longer be found.");
+                }
+                childId = appointment.ChildId;
+            }
+            else
+            {
+                var doctorAppointment = await db.DoctorAppointments.FirstOrDefaultAsync(a => a.Id == refundRequest.AppointmentId);
+                if (doctorAppointment is null)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Unable to resolve appointment", detail: "The appointment behind this refund request could no longer be found.");
+                }
+                childId = doctorAppointment.ChildId;
+            }
+
+            var child = await clientRecordsClient.GetChildAsync(childId, tenantContext.TenantId);
+            if (child is null)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Unable to resolve parent", detail: "Could not resolve the parent for this appointment's child record.");
+            }
+
+            var credited = await billingClient.CreditWalletAsync(
+                child.ParentId,
+                refundRequest.Amount,
+                $"Refund approved for appointment {refundRequest.AppointmentId}",
+                refundRequest.AppointmentId,
+                idempotencyKey,
+                tenantContext.TenantId);
+
+            if (!credited)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Wallet credit failed", detail: "Could not credit the parent's wallet. The refund request remains pending — retry the approval.");
             }
 
             refundRequest.Status = RefundRequestStatus.Approved;

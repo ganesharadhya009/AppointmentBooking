@@ -9,6 +9,7 @@ public enum RemoteClientStatus
 public class ChildInfo
 {
     public Guid Id { get; set; }
+    public Guid ParentId { get; set; }
     public RemoteClientStatus Status { get; set; }
 }
 

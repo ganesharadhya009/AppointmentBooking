@@ -17,6 +17,10 @@ builder.Services.AddHttpClient<IClientRecordsApiClient, ClientRecordsApiClient>(
 {
     client.BaseAddress = new Uri(builder.Configuration["Services:ClientRecordsApiBaseUrl"]!);
 });
+builder.Services.AddHttpClient<IBillingApiClient, BillingApiClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:BillingApiBaseUrl"]!);
+});
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
