@@ -29,3 +29,8 @@ public class IsOnLeaveResponse
 {
     public bool IsOnLeave { get; set; }
 }
+
+public class ActiveLeaveCountResponse
+{
+    public int ActiveCount { get; set; }
+}

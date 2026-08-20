@@ -55,6 +55,15 @@ public static class LeaveRequestEndpoints
             return Results.Ok(new IsOnLeaveResponse { IsOnLeave = isOnLeave });
         });
 
+        group.MapGet("/active-count", async (DateOnly date, DirectoryDbContext db) =>
+        {
+            var activeCount = await db.LeaveRequests.CountAsync(l =>
+                l.Status == LeaveRequestStatus.Approved &&
+                l.StartDate <= date &&
+                l.EndDate >= date);
+            return Results.Ok(new ActiveLeaveCountResponse { ActiveCount = activeCount });
+        });
+
         group.MapPost("", async (CreateLeaveRequestRequest request, DirectoryDbContext db, ITenantContext tenantContext) =>
         {
             var validationErrors = DataAnnotationsValidator.Validate(request);
