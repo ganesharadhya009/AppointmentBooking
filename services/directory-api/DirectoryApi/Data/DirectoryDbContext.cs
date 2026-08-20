@@ -23,6 +23,7 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
     public DbSet<Banner> Banners => Set<Banner>();
     public DbSet<Poster> Posters => Set<Poster>();
+    public DbSet<AppVersion> AppVersions => Set<AppVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -174,6 +175,11 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             p.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             p.HasIndex(x => x.TenantId);
             p.Property(x => x.Type).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<AppVersion>(a =>
+        {
+            a.Property(x => x.VersionNumber).HasMaxLength(50);
         });
     }
 }

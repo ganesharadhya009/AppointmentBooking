@@ -41,6 +41,7 @@ app.MapLeaveRequestEndpoints();
 app.MapSupportTicketEndpoints();
 app.MapBannerEndpoints();
 app.MapPosterEndpoints();
+app.MapAppVersionEndpoints();
 
 app.Run();
 
