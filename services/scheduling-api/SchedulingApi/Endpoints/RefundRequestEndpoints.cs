@@ -162,7 +162,7 @@ public static class RefundRequestEndpoints
 
             if (!credited)
             {
-                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Wallet credit failed", detail: "Could not credit the parent's wallet. The refund request remains pending — retry the approval.");
+                return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Wallet credit failed", detail: "Wallet credit could not be confirmed. The refund request remains pending — retry the approval; retrying is safe and will not double-credit.");
             }
 
             // Conditional update guarded on Status == Pending (rather than an unconditional

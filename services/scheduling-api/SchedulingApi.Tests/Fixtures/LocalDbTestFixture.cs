@@ -20,6 +20,7 @@ public class LocalDbTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
 
     public FakeDirectoryApiClient DirectoryApiClient { get; } = new();
     public FakeClientRecordsApiClient ClientRecordsApiClient { get; } = new();
+    public FakeBillingApiClient BillingApiClient { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -37,6 +38,8 @@ public class LocalDbTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddSingleton<IDirectoryApiClient>(DirectoryApiClient);
             services.RemoveAll<IClientRecordsApiClient>();
             services.AddSingleton<IClientRecordsApiClient>(ClientRecordsApiClient);
+            services.RemoveAll<IBillingApiClient>();
+            services.AddSingleton<IBillingApiClient>(BillingApiClient);
         });
     }
 
