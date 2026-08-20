@@ -39,6 +39,8 @@ app.MapConsultantClinicEndpoints();
 app.MapConsultantDoctorEndpoints();
 app.MapLeaveRequestEndpoints();
 app.MapSupportTicketEndpoints();
+app.MapBannerEndpoints();
+app.MapPosterEndpoints();
 
 app.Run();
 

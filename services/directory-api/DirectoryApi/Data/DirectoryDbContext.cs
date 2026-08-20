@@ -21,6 +21,8 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
+    public DbSet<Banner> Banners => Set<Banner>();
+    public DbSet<Poster> Posters => Set<Poster>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -157,6 +159,21 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             m.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             m.HasIndex(x => x.TenantId);
             m.Property(x => x.SenderType).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Banner>(b =>
+        {
+            b.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            b.HasIndex(x => x.TenantId);
+            b.Property(x => x.ImageUrl).HasMaxLength(2000);
+            b.Property(x => x.WatermarkTitle).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Poster>(p =>
+        {
+            p.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            p.HasIndex(x => x.TenantId);
+            p.Property(x => x.Type).HasMaxLength(100);
         });
     }
 }
