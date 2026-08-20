@@ -14,12 +14,18 @@ public static class ChildEndpoints
     {
         var group = app.MapGroup("/children");
 
-        group.MapGet("", async (int? page, int? pageSize, ClientRecordsDbContext db) =>
+        group.MapGet("", async (int? page, int? pageSize, Guid? parentId, ClientRecordsDbContext db) =>
         {
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
 
-            var query = db.Children.OrderBy(c => c.Name);
+            var filtered = db.Children.AsQueryable();
+            if (parentId is not null)
+            {
+                filtered = filtered.Where(c => c.ParentId == parentId.Value);
+            }
+
+            var query = filtered.OrderBy(c => c.Name);
             var totalCount = await query.CountAsync();
             var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
 
