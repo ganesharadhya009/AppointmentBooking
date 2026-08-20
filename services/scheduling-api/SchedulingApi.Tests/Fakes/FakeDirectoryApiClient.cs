@@ -9,6 +9,7 @@ public class FakeDirectoryApiClient : IDirectoryApiClient
     public bool? IsBranchClosedToReturn { get; set; }
     public bool? IsTherapistOnLeaveToReturn { get; set; }
     public ConsultantDoctorInfo? ConsultantDoctorToReturn { get; set; }
+    public int? ActiveLeaveCountToReturn { get; set; }
 
     public Task<BranchInfo?> GetBranchAsync(Guid branchId, Guid tenantId, CancellationToken cancellationToken = default)
         => Task.FromResult(BranchToReturn);
@@ -24,4 +25,7 @@ public class FakeDirectoryApiClient : IDirectoryApiClient
 
     public Task<ConsultantDoctorInfo?> GetConsultantDoctorAsync(Guid consultantDoctorId, Guid tenantId, CancellationToken cancellationToken = default)
         => Task.FromResult(ConsultantDoctorToReturn);
+
+    public Task<int?> GetActiveLeaveCountAsync(DateOnly date, Guid tenantId, CancellationToken cancellationToken = default)
+        => Task.FromResult(ActiveLeaveCountToReturn);
 }

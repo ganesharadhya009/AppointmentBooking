@@ -53,3 +53,11 @@ public class UpdateAppointmentRequest
     [Required]
     public DateOnly? AppointmentDate { get; set; }
 }
+
+public class TodaySummaryResponse
+{
+    public int UpcomingCount { get; set; }
+    public int CompletedCount { get; set; }
+    public int CancelledCount { get; set; }
+    public int OnLeaveCount { get; set; }
+}

@@ -78,4 +78,25 @@ public class DirectoryApiClient(HttpClient httpClient) : IDirectoryApiClient
             ? await response.Content.ReadFromJsonAsync<ConsultantDoctorInfo>(JsonOptions, cancellationToken)
             : null;
     }
+
+    public async Task<int?> GetActiveLeaveCountAsync(DateOnly date, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/leave-requests/active-count?date={date:yyyy-MM-dd}");
+        request.Headers.Add("X-Tenant-Id", tenantId.ToString());
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+        var result = await response.Content.ReadFromJsonAsync<ActiveLeaveCountResponse>(JsonOptions, cancellationToken);
+        return result?.ActiveCount;
+    }
 }

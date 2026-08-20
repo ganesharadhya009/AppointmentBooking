@@ -50,6 +50,30 @@ public static class AppointmentEndpoints
             return Results.Ok(new AvailabilityResponse { AvailableWindows = availableWindows });
         });
 
+        app.MapGet("/appointments/today-summary", async (SchedulingDbContext db, IDirectoryApiClient directoryClient, ITenantContext tenantContext) =>
+        {
+            var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.DateTime);
+
+            var upcomingCount = await db.Appointments.CountAsync(a => a.AppointmentDate == today && a.Status == AppointmentStatus.Planned)
+                + await db.DoctorAppointments.CountAsync(a => a.AppointmentDate == today && a.Status == AppointmentStatus.Planned);
+
+            var completedCount = await db.Appointments.CountAsync(a => a.AppointmentDate == today && a.Status == AppointmentStatus.Completed)
+                + await db.DoctorAppointments.CountAsync(a => a.AppointmentDate == today && a.Status == AppointmentStatus.Completed);
+
+            var cancelledCount = await db.Appointments.CountAsync(a => a.AppointmentDate == today && a.Status == AppointmentStatus.Cancelled)
+                + await db.DoctorAppointments.CountAsync(a => a.AppointmentDate == today && a.Status == AppointmentStatus.Cancelled);
+
+            var onLeaveCount = await directoryClient.GetActiveLeaveCountAsync(today, tenantContext.TenantId);
+
+            return Results.Ok(new TodaySummaryResponse
+            {
+                UpcomingCount = upcomingCount,
+                CompletedCount = completedCount,
+                CancelledCount = cancelledCount,
+                OnLeaveCount = onLeaveCount ?? 0
+            });
+        });
+
         var group = app.MapGroup("/appointments");
 
         group.MapGet("", async (int? page, int? pageSize, DateOnly? dateFrom, DateOnly? dateTo, Guid? branchId, AppointmentStatus? status, SchedulingDbContext db) =>

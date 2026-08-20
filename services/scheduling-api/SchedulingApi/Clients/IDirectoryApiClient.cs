@@ -32,6 +32,11 @@ public class IsOnLeaveResponse
     public bool IsOnLeave { get; set; }
 }
 
+public class ActiveLeaveCountResponse
+{
+    public int ActiveCount { get; set; }
+}
+
 public enum RemoteConsultantStatus
 {
     Active,
@@ -76,4 +81,5 @@ public interface IDirectoryApiClient
     Task<bool?> IsBranchClosedAsync(Guid branchId, DateOnly date, Guid tenantId, CancellationToken cancellationToken = default);
     Task<bool?> IsTherapistOnLeaveAsync(Guid therapistId, DateOnly date, Guid tenantId, CancellationToken cancellationToken = default);
     Task<ConsultantDoctorInfo?> GetConsultantDoctorAsync(Guid consultantDoctorId, Guid tenantId, CancellationToken cancellationToken = default);
+    Task<int?> GetActiveLeaveCountAsync(DateOnly date, Guid tenantId, CancellationToken cancellationToken = default);
 }
