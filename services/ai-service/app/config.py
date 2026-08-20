@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_service_dev"
     directory_api_base_url: str = "http://localhost:5256"
     scheduling_api_base_url: str = "http://localhost:5098"
+    client_records_api_base_url: str = "http://localhost:5084"
 
 
 settings = Settings()

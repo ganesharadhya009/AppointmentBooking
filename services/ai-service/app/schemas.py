@@ -48,3 +48,32 @@ class SuggestionItem(CamelModel):
 class SuggestionsResponse(CamelModel):
     suggestions: list[SuggestionItem]
     generated_at: datetime
+
+
+class EnquiryInfo(CamelModel):
+    id: UUID
+    parent_name: str
+    child_name: str
+    concerns: list[str] = []
+    diagnosis_report_url: str | None = None
+    follow_up_date: datetime | None = None
+    created_at: datetime
+
+
+class EnquiriesPage(CamelModel):
+    items: list[EnquiryInfo]
+
+
+class EnquiryTriageItem(CamelModel):
+    enquiry_id: UUID
+    parent_name: str
+    child_name: str
+    priority_score: float
+    reasons: list[str]
+    days_waiting: int
+    follow_up_date: datetime | None
+
+
+class EnquiryTriageResponse(CamelModel):
+    items: list[EnquiryTriageItem]
+    generated_at: datetime
