@@ -81,8 +81,34 @@ public static class PaymentCheckoutEndpoints
             return Results.Created($"/payment-checkouts/{checkout.Id}", ToResponse(checkout, session.CheckoutUrl));
         });
 
-        group.MapPost("/{id:guid}/callback", async (Guid id, PaymentCheckoutCallbackRequest request, BillingDbContext db, WalletCreditService creditService, ITenantContext tenantContext) =>
+        group.MapPost("/{id:guid}/callback", async (Guid id, PaymentCheckoutCallbackRequest request, HttpRequest httpRequest, BillingDbContext db, WalletCreditService creditService, ITenantContext tenantContext, IConfiguration configuration) =>
         {
+            // Stub-appropriate webhook authentication: a real gateway integration verifies a
+            // provider-specific request signature (e.g. an HMAC over the raw body using a
+            // per-merchant secret, the pattern Razorpay/Stripe/CCAvenue all use) -- there is no real
+            // signature scheme to verify yet since StubPaymentGatewayClient has no real provider
+            // behind it. Absent ANY check here, this endpoint would let anyone who can reach it (any
+            // caller already trusted with a valid X-Tenant-Id, per the platform's existing stub-auth
+            // gap) fabricate a "Success" callback for any checkout Id and mint themselves a real
+            // wallet credit -- a materially worse exploit than the generic tenant-header gap, since
+            // it's a direct path to free money rather than cross-tenant data exposure. This shared-
+            // secret header is a placeholder that at least requires knowledge of a value never
+            // returned to any API caller (unlike X-Tenant-Id, which every caller already has),
+            // closing the "anyone can hit this and fabricate success" gap for now. It must be
+            // replaced with real signature verification (HMAC over the payload, using the chosen
+            // provider's actual scheme) when a real IPaymentGatewayClient implementation replaces the
+            // stub -- tracked in DEFERRED-AND-TODO.md.
+            var expectedSecret = configuration["PaymentGateway:WebhookSecret"];
+            var providedSecret = httpRequest.Headers["X-Gateway-Webhook-Secret"].ToString();
+            if (string.IsNullOrEmpty(expectedSecret) ||
+                string.IsNullOrEmpty(providedSecret) ||
+                !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                    System.Text.Encoding.UTF8.GetBytes(providedSecret),
+                    System.Text.Encoding.UTF8.GetBytes(expectedSecret)))
+            {
+                return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Missing or invalid webhook credential", detail: "This callback requires a valid X-Gateway-Webhook-Secret header.");
+            }
+
             var validationErrors = DataAnnotationsValidator.Validate(request);
             if (validationErrors is not null)
             {
