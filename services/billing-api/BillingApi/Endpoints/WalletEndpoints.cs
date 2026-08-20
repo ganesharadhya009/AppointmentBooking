@@ -2,6 +2,7 @@ using BillingApi.Common;
 using BillingApi.Data;
 using BillingApi.Dtos;
 using BillingApi.Entities;
+using BillingApi.Services;
 using BillingApi.Tenancy;
 using BillingApi.Validation;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,7 @@ public static class WalletEndpoints
             });
         });
 
-        group.MapPost("/{parentId:guid}/credit", async (Guid parentId, CreditWalletRequest request, HttpRequest httpRequest, BillingDbContext db, ITenantContext tenantContext) =>
+        group.MapPost("/{parentId:guid}/credit", async (Guid parentId, CreditWalletRequest request, HttpRequest httpRequest, WalletCreditService creditService, ITenantContext tenantContext) =>
         {
             var validationErrors = DataAnnotationsValidator.Validate(request);
             if (validationErrors is not null)
@@ -68,122 +69,8 @@ public static class WalletEndpoints
                 return keyError;
             }
 
-            var amount = request.Amount!.Value;
-
-            var existing = await db.WalletTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey);
-            if (existing is not null)
-            {
-                var mismatch = await FindIdempotencyMismatchAsync(db, existing, parentId, WalletTransactionType.Credit, amount);
-                return mismatch ?? Results.Ok(ToTransactionResponse(existing));
-            }
-
-            IResult? conflict = null;
-            WalletTransaction? committed = null;
-
-            // Wrapped through the DbContext's execution strategy (rather than a bare
-            // BeginTransactionAsync) because the SqlServer provider is configured with
-            // EnableRetryOnFailure() — a retrying execution strategy refuses user-initiated
-            // transactions started any other way. The transaction and all reads/writes that
-            // must be atomic with it live inside this delegate so a retried attempt after a
-            // transient fault starts from fresh, actually-committed state.
-            var strategy = db.Database.CreateExecutionStrategy();
-            await strategy.ExecuteAsync(async () =>
-            {
-                db.ChangeTracker.Clear();
-
-                await using var transaction = await db.Database.BeginTransactionAsync();
-
-                var wallet = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.ParentId == parentId);
-                Guid walletId;
-
-                if (wallet is null)
-                {
-                    // Nothing to race against yet on a row that doesn't exist — the
-                    // (TenantId, ParentId) unique index backstops concurrent double-creation,
-                    // handled below in the unique-violation catch.
-                    var newWallet = new Wallet
-                    {
-                        Id = Guid.NewGuid(),
-                        TenantId = tenantContext.TenantId,
-                        ParentId = parentId,
-                        Balance = amount,
-                        CreatedAt = DateTimeOffset.UtcNow
-                    };
-                    db.Wallets.Add(newWallet);
-                    walletId = newWallet.Id;
-                }
-                else
-                {
-                    walletId = wallet.Id;
-                    // Atomic, single-statement balance update — pushes the addition into the SQL
-                    // statement itself instead of read-modify-write in memory, so two concurrent
-                    // credits against the same existing wallet both apply instead of one racing
-                    // and silently overwriting the other's in-memory read.
-                    await db.Wallets.Where(w => w.Id == walletId)
-                        .ExecuteUpdateAsync(s => s.SetProperty(w => w.Balance, w => w.Balance + amount));
-                }
-
-                var newTransaction = BuildTransaction(tenantContext.TenantId, walletId, WalletTransactionType.Credit, amount, request.Reason, request.RelatedAppointmentId, idempotencyKey!);
-                db.WalletTransactions.Add(newTransaction);
-
-                try
-                {
-                    await db.SaveChangesAsync();
-                }
-                catch (DbUpdateException ex) when (IsUniqueViolation(ex))
-                {
-                    await transaction.RollbackAsync();
-                    db.ChangeTracker.Clear();
-
-                    var raced = await db.WalletTransactions.AsNoTracking().FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey);
-                    if (raced is not null)
-                    {
-                        var mismatch = await FindIdempotencyMismatchAsync(db, raced, parentId, WalletTransactionType.Credit, amount);
-                        conflict = mismatch;
-                        committed = mismatch is null ? raced : null;
-                        return;
-                    }
-
-                    // No transaction row with this idempotency key exists, so the unique-index
-                    // violation must be the (TenantId, ParentId) wallet-creation race: two
-                    // concurrent first-credits for the same brand-new parent. Safe to retry once —
-                    // the wallet now exists (created by the other request), so redo the credit as
-                    // an atomic update against it instead of surfacing a 409 and losing this credit.
-                    var raceWallet = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.ParentId == parentId);
-                    if (raceWallet is null)
-                    {
-                        conflict = Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Concurrent credit conflict", detail: "Please retry the request.");
-                        return;
-                    }
-
-                    await using var retryTransaction = await db.Database.BeginTransactionAsync();
-
-                    await db.Wallets.Where(w => w.Id == raceWallet.Id)
-                        .ExecuteUpdateAsync(s => s.SetProperty(w => w.Balance, w => w.Balance + amount));
-
-                    var retryCredit = BuildTransaction(tenantContext.TenantId, raceWallet.Id, WalletTransactionType.Credit, amount, request.Reason, request.RelatedAppointmentId, idempotencyKey!);
-                    db.WalletTransactions.Add(retryCredit);
-
-                    try
-                    {
-                        await db.SaveChangesAsync();
-                        await retryTransaction.CommitAsync();
-                        committed = retryCredit;
-                    }
-                    catch (DbUpdateException retryEx) when (IsUniqueViolation(retryEx))
-                    {
-                        await retryTransaction.RollbackAsync();
-                        conflict = Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Concurrent credit conflict", detail: "Please retry the request.");
-                    }
-
-                    return;
-                }
-
-                await transaction.CommitAsync();
-                committed = newTransaction;
-            });
-
-            return conflict ?? Results.Ok(ToTransactionResponse(committed!));
+            var result = await creditService.CreditAsync(tenantContext.TenantId, parentId, request.Amount!.Value, request.Reason, request.RelatedAppointmentId, idempotencyKey!);
+            return result.Success ? Results.Ok(ToTransactionResponse(result.Transaction!)) : result.Error!;
         });
 
         group.MapPost("/{parentId:guid}/debit", async (Guid parentId, DebitWalletRequest request, HttpRequest httpRequest, BillingDbContext db, ITenantContext tenantContext) =>
@@ -292,37 +179,13 @@ public static class WalletEndpoints
     // an unrelated stored transaction (e.g. a credit for a different parent) as if it were this
     // request's result. Returns a 409 IResult on mismatch, or null when the stored transaction is a
     // legitimate replay of this exact request.
-    private static async Task<IResult?> FindIdempotencyMismatchAsync(BillingDbContext db, WalletTransaction stored, Guid parentId, WalletTransactionType expectedType, decimal expectedAmount)
-    {
-        var storedWallet = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.Id == stored.WalletId);
-        var matches = storedWallet is not null
-            && storedWallet.ParentId == parentId
-            && stored.Type == expectedType
-            && stored.Amount == expectedAmount;
+    private static Task<IResult?> FindIdempotencyMismatchAsync(BillingDbContext db, WalletTransaction stored, Guid parentId, WalletTransactionType expectedType, decimal expectedAmount) =>
+        WalletTransactionHelpers.FindIdempotencyMismatchAsync(db, stored, parentId, expectedType, expectedAmount);
 
-        return matches
-            ? null
-            : Results.Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Idempotency key reused for a different request",
-                detail: "This Idempotency-Key was already used for a different wallet/amount/operation.");
-    }
+    private static bool IsUniqueViolation(DbUpdateException ex) => WalletTransactionHelpers.IsUniqueViolation(ex);
 
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
-
-    private static WalletTransaction BuildTransaction(Guid tenantId, Guid walletId, WalletTransactionType type, decimal amount, string reason, Guid? relatedAppointmentId, string idempotencyKey) => new()
-    {
-        Id = Guid.NewGuid(),
-        TenantId = tenantId,
-        WalletId = walletId,
-        Type = type,
-        Amount = amount,
-        RelatedAppointmentId = relatedAppointmentId,
-        Reason = reason,
-        IdempotencyKey = idempotencyKey,
-        CreatedAt = DateTimeOffset.UtcNow
-    };
+    private static WalletTransaction BuildTransaction(Guid tenantId, Guid walletId, WalletTransactionType type, decimal amount, string reason, Guid? relatedAppointmentId, string idempotencyKey) =>
+        WalletTransactionHelpers.BuildTransaction(tenantId, walletId, type, amount, reason, relatedAppointmentId, idempotencyKey);
 
     private static WalletResponse ToWalletResponse(Wallet wallet) => new()
     {
