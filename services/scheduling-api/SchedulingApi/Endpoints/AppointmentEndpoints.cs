@@ -76,7 +76,7 @@ public static class AppointmentEndpoints
 
         var group = app.MapGroup("/appointments");
 
-        group.MapGet("", async (int? page, int? pageSize, DateOnly? dateFrom, DateOnly? dateTo, Guid? branchId, AppointmentStatus? status, SchedulingDbContext db) =>
+        group.MapGet("", async (int? page, int? pageSize, DateOnly? dateFrom, DateOnly? dateTo, Guid? branchId, AppointmentStatus? status, Guid? childId, SchedulingDbContext db) =>
         {
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
@@ -97,6 +97,10 @@ public static class AppointmentEndpoints
             if (status is not null)
             {
                 filtered = filtered.Where(a => a.Status == status.Value);
+            }
+            if (childId is not null)
+            {
+                filtered = filtered.Where(a => a.ChildId == childId.Value);
             }
 
             var query = filtered.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.CreatedAt).ThenBy(a => a.Id);
