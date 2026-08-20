@@ -1,3 +1,4 @@
+using BillingApi.Clients;
 using BillingApi.Data;
 using BillingApi.Endpoints;
 using BillingApi.Tenancy;
@@ -11,6 +12,7 @@ builder.Services.AddDbContext<BillingDbContext>(options =>
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<BillingApi.Services.WalletCreditService>();
+builder.Services.AddSingleton<IPaymentGatewayClient, StubPaymentGatewayClient>();
 
 var app = builder.Build();
 
@@ -30,6 +32,7 @@ app.UseMiddleware<TenantIdMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "BillingApi" }));
 app.MapWalletEndpoints();
+app.MapPaymentCheckoutEndpoints();
 
 app.Run();
 

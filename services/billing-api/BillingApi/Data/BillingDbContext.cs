@@ -9,6 +9,7 @@ public class BillingDbContext(DbContextOptions<BillingDbContext> options, ITenan
 {
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+    public DbSet<PaymentGatewayTransaction> PaymentGatewayTransactions => Set<PaymentGatewayTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +34,15 @@ public class BillingDbContext(DbContextOptions<BillingDbContext> options, ITenan
             // relationship — but the FK itself is required so an orphaned/misattributed ledger
             // row (a WalletId with no matching Wallet) is impossible at the DB level.
             t.HasOne<Wallet>().WithMany().HasForeignKey(x => x.WalletId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PaymentGatewayTransaction>(p =>
+        {
+            p.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            p.HasIndex(x => x.TenantId);
+            p.HasIndex(x => x.ParentId);
+            p.Property(x => x.Amount).HasColumnType("decimal(10,2)");
+            p.Property(x => x.MerchantReference).HasMaxLength(200);
         });
     }
 }
