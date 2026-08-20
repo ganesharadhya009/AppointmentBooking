@@ -55,6 +55,44 @@ public static class WalletEndpoints
             });
         });
 
+        group.MapGet("/transactions", async (int? page, int? pageSize, DateTimeOffset? dateFrom, DateTimeOffset? dateTo, WalletTransactionType? type, Guid? parentId, BillingDbContext db) =>
+        {
+            var currentPage = page is null or <= 0 ? 1 : page.Value;
+            var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
+
+            var query = db.WalletTransactions.AsQueryable();
+            if (dateFrom is not null)
+            {
+                query = query.Where(t => t.CreatedAt >= dateFrom.Value);
+            }
+            if (dateTo is not null)
+            {
+                query = query.Where(t => t.CreatedAt <= dateTo.Value);
+            }
+            if (type is not null)
+            {
+                query = query.Where(t => t.Type == type.Value);
+            }
+            if (parentId is not null)
+            {
+                var wallet = await db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.ParentId == parentId.Value);
+                query = wallet is null ? query.Where(t => false) : query.Where(t => t.WalletId == wallet.Id);
+            }
+
+            query = query.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id);
+
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
+
+            return Results.Ok(new PagedResult<WalletTransactionResponse>
+            {
+                Items = items.Select(ToTransactionResponse).ToList(),
+                Page = currentPage,
+                PageSize = currentPageSize,
+                TotalCount = totalCount
+            });
+        });
+
         group.MapPost("/{parentId:guid}/credit", async (Guid parentId, CreditWalletRequest request, HttpRequest httpRequest, WalletCreditService creditService, ITenantContext tenantContext) =>
         {
             var validationErrors = DataAnnotationsValidator.Validate(request);

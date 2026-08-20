@@ -16,7 +16,7 @@ public static class PaymentCheckoutEndpoints
     {
         var group = app.MapGroup("/payment-checkouts");
 
-        group.MapGet("", async (int? page, int? pageSize, PaymentGatewayTransactionStatus? status, Guid? parentId, BillingDbContext db) =>
+        group.MapGet("", async (int? page, int? pageSize, PaymentGatewayTransactionStatus? status, Guid? parentId, DateTimeOffset? dateFrom, DateTimeOffset? dateTo, BillingDbContext db) =>
         {
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
@@ -29,6 +29,14 @@ public static class PaymentCheckoutEndpoints
             if (parentId is not null)
             {
                 query = query.Where(t => t.ParentId == parentId);
+            }
+            if (dateFrom is not null)
+            {
+                query = query.Where(t => t.CreatedAt >= dateFrom.Value);
+            }
+            if (dateTo is not null)
+            {
+                query = query.Where(t => t.CreatedAt <= dateTo.Value);
             }
             query = query.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id);
 
