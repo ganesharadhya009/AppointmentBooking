@@ -52,12 +52,30 @@ public static class AppointmentEndpoints
 
         var group = app.MapGroup("/appointments");
 
-        group.MapGet("", async (int? page, int? pageSize, SchedulingDbContext db) =>
+        group.MapGet("", async (int? page, int? pageSize, DateOnly? dateFrom, DateOnly? dateTo, Guid? branchId, AppointmentStatus? status, SchedulingDbContext db) =>
         {
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
 
-            var query = db.Appointments.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.CreatedAt).ThenBy(a => a.Id);
+            var filtered = db.Appointments.AsQueryable();
+            if (dateFrom is not null)
+            {
+                filtered = filtered.Where(a => a.AppointmentDate >= dateFrom.Value);
+            }
+            if (dateTo is not null)
+            {
+                filtered = filtered.Where(a => a.AppointmentDate <= dateTo.Value);
+            }
+            if (branchId is not null)
+            {
+                filtered = filtered.Where(a => a.BranchId == branchId.Value);
+            }
+            if (status is not null)
+            {
+                filtered = filtered.Where(a => a.Status == status.Value);
+            }
+
+            var query = filtered.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.CreatedAt).ThenBy(a => a.Id);
             var totalCount = await query.CountAsync();
             var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
 
@@ -292,7 +310,7 @@ public static class AppointmentEndpoints
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
 
-    private static AppointmentResponse ToResponse(Appointment appointment) => new()
+    internal static AppointmentResponse ToResponse(Appointment appointment) => new()
     {
         Id = appointment.Id,
         BranchId = appointment.BranchId,

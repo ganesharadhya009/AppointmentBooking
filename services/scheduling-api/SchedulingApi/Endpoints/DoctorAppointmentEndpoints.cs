@@ -16,12 +16,26 @@ public static class DoctorAppointmentEndpoints
     {
         var group = app.MapGroup("/doctor-appointments");
 
-        group.MapGet("", async (int? page, int? pageSize, SchedulingDbContext db) =>
+        group.MapGet("", async (int? page, int? pageSize, DateOnly? dateFrom, DateOnly? dateTo, AppointmentStatus? status, SchedulingDbContext db) =>
         {
             var currentPage = page is null or <= 0 ? 1 : page.Value;
             var currentPageSize = pageSize is null or <= 0 ? 20 : Math.Min(pageSize.Value, 100);
 
-            var query = db.DoctorAppointments.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.CreatedAt).ThenBy(a => a.Id);
+            var filtered = db.DoctorAppointments.AsQueryable();
+            if (dateFrom is not null)
+            {
+                filtered = filtered.Where(a => a.AppointmentDate >= dateFrom.Value);
+            }
+            if (dateTo is not null)
+            {
+                filtered = filtered.Where(a => a.AppointmentDate <= dateTo.Value);
+            }
+            if (status is not null)
+            {
+                filtered = filtered.Where(a => a.Status == status.Value);
+            }
+
+            var query = filtered.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.CreatedAt).ThenBy(a => a.Id);
             var totalCount = await query.CountAsync();
             var items = await query.Skip((currentPage - 1) * currentPageSize).Take(currentPageSize).ToListAsync();
 

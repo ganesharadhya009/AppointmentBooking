@@ -44,6 +44,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "Sche
 app.MapAppointmentEndpoints();
 app.MapDoctorAppointmentEndpoints();
 app.MapRefundRequestEndpoints();
+app.MapAppointmentReportEndpoints();
 
 app.Run();
 
