@@ -24,6 +24,8 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<Banner> Banners => Set<Banner>();
     public DbSet<Poster> Posters => Set<Poster>();
     public DbSet<AppVersion> AppVersions => Set<AppVersion>();
+    public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -180,6 +182,29 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
         modelBuilder.Entity<AppVersion>(a =>
         {
             a.Property(x => x.VersionNumber).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<TenantSubscription>(s =>
+        {
+            // Tenant-scoped by TenantId like everything else, but NOT via the usual
+            // HasQueryFilter(x => x.TenantId == tenantContext.TenantId) pattern -- a caller
+            // provisioning/managing a tenant's subscription is, by definition, acting on that
+            // exact tenant, so the standard "current caller's own tenant" filter is what every
+            // endpoint here already enforces implicitly via TenantId matching the request's
+            // resolved tenant. HasIndex + a uniqueness constraint (one subscription per tenant)
+            // is what actually matters here.
+            s.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            s.HasIndex(x => x.TenantId).IsUnique();
+            s.Property(x => x.PlanName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<StaffMember>(s =>
+        {
+            s.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            s.HasIndex(x => x.TenantId);
+            s.Property(x => x.Name).HasMaxLength(200);
+            s.Property(x => x.Email).HasMaxLength(320);
+            s.Property(x => x.Phone).HasMaxLength(50);
         });
     }
 }

@@ -42,6 +42,8 @@ app.MapSupportTicketEndpoints();
 app.MapBannerEndpoints();
 app.MapPosterEndpoints();
 app.MapAppVersionEndpoints();
+app.MapTenantSubscriptionEndpoints();
+app.MapStaffMemberEndpoints();
 
 app.Run();
 
