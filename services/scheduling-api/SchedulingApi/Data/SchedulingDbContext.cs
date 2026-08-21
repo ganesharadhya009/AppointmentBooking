@@ -19,7 +19,7 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
             a.HasIndex(x => x.TenantId);
             a.HasIndex(x => new { x.TenantId, x.BranchId, x.TherapistId, x.TherapyTypeId, x.AppointmentDate });
             a.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
-            a.HasIndex(x => new { x.TenantId, x.BranchId, x.TherapistId, x.TherapyTypeId, x.AppointmentDate, x.WindowName }).IsUnique().HasFilter("[Status] <> 2");
+            a.HasIndex(x => new { x.TenantId, x.BranchId, x.TherapistId, x.TherapyTypeId, x.AppointmentDate, x.WindowName }).IsUnique().HasFilter("\"Status\" <> 2");
             a.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
             a.Property(x => x.IdempotencyKey).HasMaxLength(200);
             a.Property(x => x.BookedBy).HasMaxLength(200);
@@ -30,7 +30,7 @@ public class SchedulingDbContext(DbContextOptions<SchedulingDbContext> options, 
             d.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             d.HasIndex(x => x.TenantId);
             d.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique();
-            d.HasIndex(x => new { x.TenantId, x.ConsultantDoctorId, x.AppointmentDate, x.AppointmentTime }).IsUnique().HasFilter("[Status] <> 2");
+            d.HasIndex(x => new { x.TenantId, x.ConsultantDoctorId, x.AppointmentDate, x.AppointmentTime }).IsUnique().HasFilter("\"Status\" <> 2");
             d.Property(x => x.ConsultationFee).HasColumnType("decimal(10,2)");
             d.Property(x => x.IdempotencyKey).HasMaxLength(200);
             d.Property(x => x.BookedBy).HasMaxLength(200);

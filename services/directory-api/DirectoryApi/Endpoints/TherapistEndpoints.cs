@@ -154,7 +154,7 @@ public static class TherapistEndpoints
             // equivalent code was found NOT to do in the prior plan's final review — that gap
             // is closed here, and retrofitted onto Branch in this same task's Step 4.
             // The transaction itself must run through the DbContext's execution strategy
-            // (rather than a bare BeginTransactionAsync) because the SqlServer provider is
+            // (rather than a bare BeginTransactionAsync) because the Npgsql provider is
             // configured with EnableRetryOnFailure() — a retrying execution strategy refuses
             // user-initiated transactions started any other way. The entity is loaded and mutated
             // *inside* the delegate (not captured from an outer load) so every retry attempt starts

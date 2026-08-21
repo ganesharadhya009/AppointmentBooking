@@ -64,7 +64,7 @@ public class ClientRecordsDbContext(DbContextOptions<ClientRecordsDbContext> opt
             e.Property(x => x.Country).HasMaxLength(100);
             e.Property(x => x.Concerns)
                 .HasConversion(concernsConverter)
-                .HasColumnType("nvarchar(max)")
+                .HasColumnType("text")
                 .Metadata.SetValueComparer(concernsComparer);
         });
     }

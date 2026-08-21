@@ -115,7 +115,7 @@ public static class BranchEndpoints
             // Both SaveChangesAsync calls are wrapped in one transaction so a failure after the
             // delete (before the new tiers are inserted) can't leave the branch with zero tiers.
             // The transaction runs through the DbContext's execution strategy (rather than a bare
-            // BeginTransactionAsync) because the SqlServer provider is configured with
+            // BeginTransactionAsync) because the Npgsql provider is configured with
             // EnableRetryOnFailure() — a retrying execution strategy refuses user-initiated
             // transactions started any other way. The entity is loaded and mutated *inside* the
             // delegate (not captured from an outer load) so every retry attempt starts from a

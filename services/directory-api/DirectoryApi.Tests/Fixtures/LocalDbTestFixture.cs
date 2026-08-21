@@ -10,10 +10,10 @@ namespace DirectoryApi.Tests.Fixtures;
 
 public class LocalDbTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly string _databaseName = $"DirectoryApiTest_{Guid.NewGuid():N}";
+    private readonly string _databaseName = $"directoryapitest_{Guid.NewGuid():N}";
 
     public string ConnectionString =>
-        $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;";
+        $"Host=localhost;Port=5432;Database={_databaseName};Username=postgres;Password={Environment.GetEnvironmentVariable("LOCAL_POSTGRES_PASSWORD") ?? "postgres"}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
