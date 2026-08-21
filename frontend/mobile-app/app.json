@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "BimBa Connect",
+    "slug": "bimba-connect",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FBF7F6",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pragyan.bimbaconnect"
+    },
+    "android": {
+      "package": "com.pragyan.bimba_connect",
+      "adaptiveIcon": {
+        "backgroundColor": "#E4453A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "769fd12b-0888-4764-911f-507dd8df9631"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/769fd12b-0888-4764-911f-507dd8df9631"
+    }
+  }
+}
