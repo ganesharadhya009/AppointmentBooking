@@ -24,7 +24,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddDbContext<DirectoryDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DirectoryDb"), sqlOptions => sqlOptions.EnableRetryOnFailure()));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DirectoryDb"), npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 

@@ -24,7 +24,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddDbContext<ClientRecordsDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("ClientRecordsDb"), sqlOptions => sqlOptions.EnableRetryOnFailure()));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("ClientRecordsDb"), npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 

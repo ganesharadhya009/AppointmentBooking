@@ -25,7 +25,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddDbContext<SchedulingDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SchedulingDb"), sqlOptions => sqlOptions.EnableRetryOnFailure()));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("SchedulingDb"), npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
 builder.Services.AddHttpClient<IDirectoryApiClient, DirectoryApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Services:DirectoryApiBaseUrl"]!);

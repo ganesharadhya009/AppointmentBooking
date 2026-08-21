@@ -33,7 +33,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddDbContext<BillingDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("BillingDb"), sqlOptions => sqlOptions.EnableRetryOnFailure()));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("BillingDb"), npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<BillingApi.Services.WalletCreditService>();

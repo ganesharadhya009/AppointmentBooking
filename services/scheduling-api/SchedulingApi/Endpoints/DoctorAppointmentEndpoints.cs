@@ -213,7 +213,7 @@ public static class DoctorAppointmentEndpoints
     }
 
     private static bool IsUniqueViolation(Microsoft.EntityFrameworkCore.DbUpdateException ex) =>
-        ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
+        ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation };
 
     private static DoctorAppointmentResponse ToResponse(DoctorAppointment appointment) => new()
     {

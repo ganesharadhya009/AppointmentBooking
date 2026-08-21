@@ -10,7 +10,7 @@ namespace BillingApi.Services;
 public static class WalletTransactionHelpers
 {
     public static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 };
+        ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation };
 
     public static WalletTransaction BuildTransaction(Guid tenantId, Guid walletId, WalletTransactionType type, decimal amount, string reason, Guid? relatedAppointmentId, string idempotencyKey) => new()
     {
