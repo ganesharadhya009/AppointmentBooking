@@ -6,7 +6,7 @@ import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { therapies, therapists } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { HomeStackParamList } from '../../navigation/types';
 import { colors, radius, spacing } from '../../theme/theme';
 
@@ -14,6 +14,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'TherapistList'>;
 
 export const TherapistListScreen: React.FC<Props> = ({ route, navigation }) => {
   const { therapyId } = route.params;
+  const { therapies, therapists } = useCatalog();
   const therapy = therapies.find((t) => t.id === therapyId);
   const list = therapists.filter((t) => t.therapyId === therapyId);
 

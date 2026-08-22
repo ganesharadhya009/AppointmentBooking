@@ -38,6 +38,13 @@ builder.Services.AddHttpClient<IBillingApiClient, BillingApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Services:BillingApiBaseUrl"]!);
 });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalDev", policy => policy
+        .WithOrigins("http://localhost:5173", "http://localhost:8081", "http://localhost:19006")
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
@@ -60,6 +67,11 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("LocalDev");
+}
 
 app.UseMiddleware<TenantIdMiddleware>();
 

@@ -6,13 +6,14 @@ import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { StatusChip } from '../../components/StatusChip';
-import { consultingDoctors } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { HomeStackParamList } from '../../navigation/types';
 import { colors, spacing } from '../../theme/theme';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'BrowseDoctors'>;
 
 export const BrowseDoctorsScreen: React.FC<Props> = ({ navigation }) => {
+  const { consultingDoctors } = useCatalog();
   return (
     <View style={styles.wrap}>
       <ScreenHeader title="Consulting Doctors" subtitle="Book an in-clinic appointment" />

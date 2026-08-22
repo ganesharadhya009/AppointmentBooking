@@ -1,43 +1,56 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Sparkles, ShieldCheck, Building2, Users2, ArrowRight, AlertCircle } from "lucide-react";
-import { useAuthStore, type UserType } from "@/store/authStore";
-import { cn } from "@/lib/utils";
+import { Eye, EyeOff, ShieldCheck, Building2, Users2, ArrowRight, AlertCircle } from "lucide-react";
+import { useAuthStore, ROLE_LABELS } from "@/store/authStore";
+import { directoryApi, ApiError, type PagedResult } from "@/lib/apiClient";
 
-const userTypes: { value: UserType; label: string }[] = [
-  { value: "Admin", label: "Admin" },
-  { value: "Therapist", label: "Therapist" },
-  { value: "Auditor", label: "Auditor" },
-  { value: "HR", label: "HR" },
-];
+interface StaffMemberResponse {
+  id: string;
+  name: string;
+  email: string;
+  role: number;
+  isActive: boolean;
+}
 
 export default function Login() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const [identifier, setIdentifier] = useState("admin@cdcconnect.in");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [userType, setUserType] = useState<UserType | null>(null);
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!identifier || !password) {
-      setError("Enter your phone/email and password.");
-      return;
-    }
-    if (!userType) {
-      setError("Select a user type to continue.");
+      setError("Enter your email and password.");
       return;
     }
     setError("");
     setLoading(true);
-    setTimeout(() => {
-      login(identifier, userType);
+    try {
+      const result = await directoryApi.get<PagedResult<StaffMemberResponse>>("/staff-members", {
+        isActive: true,
+        pageSize: 100,
+      });
+      const match = result.items.find((s) => s.email.toLowerCase() === identifier.trim().toLowerCase());
+      if (!match) {
+        setError("No active staff account found for that email.");
+        return;
+      }
+      login({ id: match.id, name: match.name, email: match.email, role: ROLE_LABELS[match.role] });
       navigate("/dashboard");
-    }, 650);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? `Sign-in failed: ${err.message}`
+          : "Couldn't reach the server. Make sure directory-api is running."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -58,7 +71,7 @@ export default function Login() {
 
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur">
-            <Sparkles size={20} className="text-white" />
+            <img src="/logo.webp" alt="BimBa" className="h-8 w-8 object-contain" />
           </div>
           <div>
             <div className="text-lg font-extrabold text-white">BimBa&#8209;Pro</div>
@@ -98,7 +111,7 @@ export default function Login() {
         >
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-teal-500">
-              <Sparkles size={18} className="text-white" />
+              <img src="/logo.webp" alt="BimBa" className="h-7 w-7 object-contain" />
             </div>
             <div className="text-base font-extrabold text-ink-950">BimBa&#8209;Pro</div>
           </div>
@@ -135,27 +148,9 @@ export default function Login() {
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-ink-700">User type</label>
-              <div className="grid grid-cols-4 gap-2">
-                {userTypes.map((t) => (
-                  <button
-                    type="button"
-                    key={t.value}
-                    onClick={() => setUserType(t.value)}
-                    className={cn(
-                      "rounded-xl py-2.5 text-xs font-bold transition-all",
-                      userType === t.value
-                        ? "bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_8px_20px_-8px_rgba(79,70,229,0.55)]"
-                        : "bg-white text-ink-700/60 shadow-soft ring-1 ring-inset ring-ink-900/10 hover:text-ink-900"
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-[11px] text-ink-700/40">
+                Password isn&apos;t verified yet &mdash; sign-in matches your email to an active staff record.
+              </p>
             </div>
 
             {error && (

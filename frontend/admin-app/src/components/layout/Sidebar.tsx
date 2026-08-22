@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { navGroups } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { ChevronsLeft, Sparkles } from "lucide-react";
+import { ChevronsLeft } from "lucide-react";
 import { useUiStore } from "@/store/authStore";
 import { motion } from "framer-motion";
 
@@ -26,9 +26,7 @@ export function Sidebar() {
       >
         <div className="pointer-events-none absolute inset-0 bg-noise opacity-[0.06]" />
         <div className={cn("relative flex items-center gap-2.5 px-5 py-6", sidebarCollapsed && "lg:justify-center lg:px-0")}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-teal-400 shadow-[0_8px_20px_-6px_rgba(99,102,241,0.6)]">
-            <Sparkles size={17} className="text-white" strokeWidth={2.4} />
-          </div>
+          <img src="/logo.webp" alt="BimBa" className="h-9 w-9 shrink-0 rounded-xl object-contain" />
           {!sidebarCollapsed && (
             <div className="leading-tight">
               <div className="text-sm font-extrabold text-white">BimBa&#8209;Pro</div>

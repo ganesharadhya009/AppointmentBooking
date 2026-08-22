@@ -5,7 +5,7 @@ import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { StatusChip } from '../../components/StatusChip';
-import { consultingDoctors } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { HomeStackParamList } from '../../navigation/types';
 import { colors, radius, shadow, spacing } from '../../theme/theme';
 
@@ -13,6 +13,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'DoctorProfile'>;
 
 export const DoctorProfileScreen: React.FC<Props> = ({ route, navigation }) => {
   const { doctorId } = route.params;
+  const { consultingDoctors } = useCatalog();
   const doctor = consultingDoctors.find((d) => d.id === doctorId)!;
   const insets = useSafeAreaInsets();
 

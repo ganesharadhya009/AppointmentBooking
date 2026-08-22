@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-type Tone = "success" | "warning" | "danger" | "info" | "neutral" | "brand";
+export type Tone = "success" | "warning" | "danger" | "info" | "neutral" | "brand";
 
 const toneStyles: Record<Tone, string> = {
   success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",

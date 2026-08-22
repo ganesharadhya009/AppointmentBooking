@@ -6,7 +6,7 @@ import { MonthCalendar } from '../../components/MonthCalendar';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useAppData } from '../../context/AppDataContext';
-import { branches, consultingDoctors, therapies, therapists } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { buildSlotsForDate } from '../../data/slots';
 import { HomeStackParamList } from '../../navigation/types';
 import { SlotState } from '../../types';
@@ -25,16 +25,17 @@ const SLOT_LEGEND: { state: SlotState; label: string }[] = [
 export const BookAppointmentScreen: React.FC<Props> = ({ route, navigation }) => {
   const { type, providerId } = route.params;
   const { children_, setPendingBooking } = useAppData();
+  const { branches, consultingDoctors, therapies, therapists } = useCatalog();
 
   const provider = useMemo(() => {
     if (type === 'therapy') {
       const t = therapists.find((x) => x.id === providerId)!;
       const therapy = therapies.find((x) => x.id === t.therapyId)!;
-      return { name: t.name, serviceName: therapy.name, cost: 500, branchId: t.branchId };
+      return { name: t.name, serviceName: therapy.name, cost: t.sessionPrice ?? 500, branchId: t.branchId };
     }
     const d = consultingDoctors.find((x) => x.id === providerId)!;
     return { name: d.name, serviceName: 'Clinic Appointment', cost: d.fee, branchId: branches[0].id };
-  }, [type, providerId]);
+  }, [type, providerId, branches, consultingDoctors, therapies, therapists]);
 
   const [childId, setChildId] = useState(children_[0]?.id ?? '');
   const [selectedDate, setSelectedDate] = useState(new Date());

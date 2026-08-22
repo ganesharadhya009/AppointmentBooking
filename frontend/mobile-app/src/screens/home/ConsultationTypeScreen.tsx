@@ -3,7 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { consultingDoctors } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { HomeStackParamList } from '../../navigation/types';
 import { colors, radius, shadow, spacing } from '../../theme/theme';
 
@@ -11,6 +11,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'ConsultationType'>;
 
 export const ConsultationTypeScreen: React.FC<Props> = ({ route, navigation }) => {
   const { doctorId } = route.params;
+  const { consultingDoctors } = useCatalog();
   const doctor = consultingDoctors.find((d) => d.id === doctorId)!;
   const insets = useSafeAreaInsets();
 

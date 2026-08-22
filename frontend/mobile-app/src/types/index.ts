@@ -40,6 +40,8 @@ export interface Therapist {
   experienceYears: number;
   rating: number;
   specialties: string[];
+  /** Price of this therapist's assignment's first configured session window, if any. */
+  sessionPrice?: number;
 }
 
 export interface ConsultingDoctor {

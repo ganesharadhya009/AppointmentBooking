@@ -18,6 +18,7 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
     public DbSet<ConsultantService> ConsultantServices => Set<ConsultantService>();
     public DbSet<ConsultantClinic> ConsultantClinics => Set<ConsultantClinic>();
     public DbSet<ConsultantDoctor> ConsultantDoctors => Set<ConsultantDoctor>();
+    public DbSet<ConsultantDoctorSessionWindow> ConsultantDoctorSessionWindows => Set<ConsultantDoctorSessionWindow>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
     public DbSet<SupportTicketMessage> SupportTicketMessages => Set<SupportTicketMessage>();
@@ -133,9 +134,28 @@ public class DirectoryDbContext(DbContextOptions<DirectoryDbContext> options, IT
             d.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
             d.HasIndex(x => x.TenantId);
             d.HasIndex(x => x.ConsultantServiceId);
-            d.HasIndex(x => x.ConsultantClinicId);
             d.Property(x => x.Name).HasMaxLength(200);
             d.Property(x => x.ConsultationFee).HasColumnType("decimal(10,2)");
+            d.Property(x => x.Mobile).HasMaxLength(20);
+            d.Property(x => x.Email).HasMaxLength(200);
+            d.Property(x => x.Gender).HasMaxLength(20);
+            d.Property(x => x.LicenseNumber).HasMaxLength(100);
+            d.Property(x => x.Qualification).HasMaxLength(200);
+            d.HasMany(x => x.Clinics)
+                .WithMany()
+                .UsingEntity(j => j.ToTable("ConsultantDoctorClinic"));
+            d.HasMany(x => x.SessionWindows)
+                .WithOne()
+                .HasForeignKey(w => w.ConsultantDoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ConsultantDoctorSessionWindow>(w =>
+        {
+            w.HasQueryFilter(x => x.TenantId == tenantContext.TenantId);
+            w.HasIndex(x => x.TenantId);
+            w.HasIndex(x => new { x.ConsultantDoctorId, x.WindowName }).IsUnique();
+            w.Property(x => x.PricePerSession).HasColumnType("decimal(10,2)");
         });
 
         modelBuilder.Entity<LeaveRequest>(l =>

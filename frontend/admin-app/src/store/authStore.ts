@@ -1,22 +1,38 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-export type UserType = "Admin" | "Therapist" | "Auditor" | "HR";
+// Matches DirectoryApi.Entities.StaffRole (services/directory-api/DirectoryApi/Entities/StaffMember.cs).
+// The backend serializes this enum as its numeric ordinal, hence the index-based ROLE_LABELS lookup.
+export const ROLE_LABELS = ["Super Admin", "Admin", "Auditor", "HR"] as const;
+export type StaffRole = (typeof ROLE_LABELS)[number];
+
+export interface AuthenticatedStaff {
+  id: string;
+  name: string;
+  email: string;
+  role: StaffRole;
+}
 
 interface AuthState {
   isAuthenticated: boolean;
-  name: string;
-  userType: UserType | null;
-  login: (identifier: string, userType: UserType) => void;
+  staff: AuthenticatedStaff | null;
+  login: (staff: AuthenticatedStaff) => void;
   logout: () => void;
+  updateStaff: (staff: AuthenticatedStaff) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: false,
-  name: "Bimba Super Admin",
-  userType: null,
-  login: (_identifier, userType) => set({ isAuthenticated: true, userType, name: "Bimba Super Admin" }),
-  logout: () => set({ isAuthenticated: false, userType: null }),
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      isAuthenticated: false,
+      staff: null,
+      login: (staff) => set({ isAuthenticated: true, staff }),
+      logout: () => set({ isAuthenticated: false, staff: null }),
+      updateStaff: (staff) => set({ staff }),
+    }),
+    { name: "bimba.auth" }
+  )
+);
 
 interface UiState {
   sidebarCollapsed: boolean;

@@ -4,13 +4,14 @@ import React from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Card } from '../../components/Card';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { therapies } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { HomeStackParamList } from '../../navigation/types';
 import { colors, radius, spacing } from '../../theme/theme';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'BrowseTherapy'>;
 
 export const BrowseTherapyScreen: React.FC<Props> = ({ navigation }) => {
+  const { therapies } = useCatalog();
   return (
     <View style={styles.wrap}>
       <ScreenHeader title="Therapy Services" subtitle="Browse and book a session" />

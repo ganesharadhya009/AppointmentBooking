@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
 import { useAuth } from '../../context/AuthContext';
-import { branches, consultingDoctors, therapies } from '../../data/mockData';
+import { useCatalog } from '../../context/CatalogContext';
 import { HomeStackParamList } from '../../navigation/types';
 import { colors, gradientLocations, gradients, radius, spacing } from '../../theme/theme';
 
@@ -21,6 +21,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
+  const { branches, consultingDoctors, therapies } = useCatalog();
   const insets = useSafeAreaInsets();
   const [branchId, setBranchId] = useState(branches[0].id);
   const [showBranchPicker, setShowBranchPicker] = useState(false);

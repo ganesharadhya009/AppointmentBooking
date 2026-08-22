@@ -2,10 +2,10 @@ namespace DirectoryApi.Entities;
 
 public enum StaffRole
 {
+    SuperAdmin,
     Admin,
-    FrontDesk,
-    Therapist,
-    DoctorCoordinator
+    Auditor,
+    HR
 }
 
 // Credential-free directory stub -- Email is a contact field, not a login identifier. No

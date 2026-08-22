@@ -1,21 +1,48 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Building2, Stethoscope, Users, UsersRound, CalendarCheck2, CreditCard, Ban, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile, MiniStat } from "@/components/ui/StatTile";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { DonutChart, DonutLegend } from "@/components/ui/DonutChart";
-import { useAppStore } from "@/store/appStore";
+import { directoryApi, type PagedResult } from "@/lib/apiClient";
 import { appointments, paymentTxns, refundRequests, therapyNamesList } from "@/lib/mockData";
 import { formatDate } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge, statusTone } from "@/components/ui/Badge";
 
-export default function Dashboard() {
-  const { branches, therapists, adminUsers } = useAppStore();
+interface BranchSummary {
+  id: string;
+  name: string;
+  city: string | null;
+  isActive: boolean;
+}
 
-  const activeBranches = branches.filter((b) => b.status === "Active").length;
-  const activeTherapists = therapists.filter((t) => t.status === "Active").length;
-  const activeAdmins = adminUsers.filter((u) => u.status === "Active").length;
+export default function Dashboard() {
+  const [therapists, setTherapists] = useState<{ status: number }[]>([]);
+  useEffect(() => {
+    directoryApi
+      .get<PagedResult<{ status: number }>>("/therapists", { pageSize: 100 })
+      .then((res) => setTherapists(res.items))
+      .catch(() => {});
+  }, []);
+  const activeTherapists = therapists.filter((t) => t.status === 0).length;
+
+  const [staffCounts, setStaffCounts] = useState({ total: 0, active: 0 });
+  useEffect(() => {
+    directoryApi
+      .get<PagedResult<{ isActive: boolean }>>("/staff-members", { pageSize: 100 })
+      .then((res) => setStaffCounts({ total: res.totalCount, active: res.items.filter((s) => s.isActive).length }))
+      .catch(() => {});
+  }, []);
+
+  const [branches, setBranches] = useState<BranchSummary[]>([]);
+  useEffect(() => {
+    directoryApi
+      .get<PagedResult<BranchSummary>>("/branches", { pageSize: 100 })
+      .then((res) => setBranches(res.items))
+      .catch(() => {});
+  }, []);
+  const activeBranches = branches.filter((b) => b.isActive).length;
 
   const todayAppts = useMemo(() => {
     const planned = appointments.filter((a) => a.status === "Planned").length;
@@ -75,10 +102,10 @@ export default function Dashboard() {
         />
         <StatTile
           label="Back-office Users"
-          value={adminUsers.length}
+          value={staffCounts.total}
           icon={<UsersRound size={18} />}
           tint="#f43f5e"
-          sub={`${activeAdmins} active`}
+          sub={`${staffCounts.active} active`}
         />
       </div>
 
@@ -224,17 +251,14 @@ export default function Dashboard() {
           <CardBody className="flex flex-col gap-3">
             {branches.map((b) => (
               <div key={b.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3.5 py-3">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-                  style={{ background: b.imageColor }}
-                >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
                   {b.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-ink-900">{b.name}</div>
-                  <div className="truncate text-[11px] text-ink-700/45">{b.city}</div>
+                  <div className="truncate text-[11px] text-ink-700/45">{b.city ?? "—"}</div>
                 </div>
-                <Badge tone={statusTone(b.status)}>{b.status}</Badge>
+                <Badge tone={statusTone(b.isActive ? "Active" : "Inactive")}>{b.isActive ? "Active" : "Inactive"}</Badge>
               </div>
             ))}
             <div className="mt-1 flex gap-3">

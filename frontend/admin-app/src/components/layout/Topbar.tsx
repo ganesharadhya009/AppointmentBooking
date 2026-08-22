@@ -1,15 +1,20 @@
 import { useState } from "react";
-import { Bell, Menu, Search, ChevronDown, LogOut, User, Settings } from "lucide-react";
+import { Bell, Menu, Search, ChevronDown, LogOut, User, KeyRound } from "lucide-react";
 import { useAuthStore, useUiStore } from "@/store/authStore";
 import { Avatar } from "@/components/ui/Avatar";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { allNavItems } from "@/lib/nav";
+import { MyProfileModal } from "./MyProfileModal";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 
 export function Topbar() {
-  const { name, userType, logout } = useAuthStore();
+  const { staff, logout } = useAuthStore();
+  const name = staff?.name ?? "Bimba Admin";
   const { setMobileNavOpen } = useUiStore();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [myProfileOpen, setMyProfileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const location = useLocation();
   const current = allNavItems.find((i) => location.pathname.startsWith(i.path));
 
@@ -49,7 +54,7 @@ export function Topbar() {
             <Avatar name={name} color="#4f46e5" size={32} />
             <div className="hidden text-left leading-tight sm:block">
               <div className="text-[13px] font-bold text-ink-900">{name}</div>
-              <div className="text-[10px] font-medium text-ink-700/45">{userType ?? "Admin"}</div>
+              <div className="text-[10px] font-medium text-ink-700/45">{staff?.role ?? "Admin"}</div>
             </div>
             <ChevronDown size={14} className="hidden text-ink-700/40 sm:block" />
           </button>
@@ -69,12 +74,12 @@ export function Topbar() {
                     <Avatar name={name} color="#4f46e5" size={36} />
                     <div className="leading-tight">
                       <div className="text-sm font-bold text-ink-900">{name}</div>
-                      <div className="text-[11px] text-ink-700/45">Super Admin</div>
+                      <div className="text-[11px] text-ink-700/45">{staff?.email ?? "Super Admin"}</div>
                     </div>
                   </div>
                   <div className="my-1 h-px bg-ink-900/[0.06]" />
-                  <MenuItem icon={<User size={15} />} label="My Profile" />
-                  <MenuItem icon={<Settings size={15} />} label="Settings" />
+                  <MenuItem icon={<User size={15} />} label="My Profile" onClick={() => { setProfileOpen(false); setMyProfileOpen(true); }} />
+                  <MenuItem icon={<KeyRound size={15} />} label="Change Password" onClick={() => { setProfileOpen(false); setChangePasswordOpen(true); }} />
                   <div className="my-1 h-px bg-ink-900/[0.06]" />
                   <MenuItem icon={<LogOut size={15} />} label="Sign out" danger onClick={logout} />
                 </motion.div>
@@ -83,6 +88,9 @@ export function Topbar() {
           </AnimatePresence>
         </div>
       </div>
+
+      <MyProfileModal open={myProfileOpen} onClose={() => setMyProfileOpen(false)} />
+      <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </header>
   );
 }

@@ -34,6 +34,13 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddDbContext<BillingDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("BillingDb"), npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalDev", policy => policy
+        .WithOrigins("http://localhost:5173", "http://localhost:8081", "http://localhost:19006")
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 builder.Services.AddScoped<BillingApi.Services.WalletCreditService>();
@@ -58,6 +65,11 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("LocalDev");
+}
 
 app.UseMiddleware<TenantIdMiddleware>();
 
